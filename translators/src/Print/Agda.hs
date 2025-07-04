@@ -46,9 +46,14 @@ printImport (ImportLib VecMod) = import_ <+> "Data.Vec.Base"
 printImport (ImportLib ListMod) = import_ <+> "Agda.Builtin.List"
 printImport (ImportLib StringMod) = import_ <+> "Agda.Builtin.String"
 
+printArgL :: Arg [ Name ] Tm -> Doc ann
+printArgL (Arg [] t) = printTm t
+printArgL (Arg (x:xs) t) = teleCell (foldr (\ nm d -> pretty nm <+> d) (pretty x) xs)  (printTm t) 
+
 -- Print Terms
 printTm :: Tm -> Doc ann
 printTm (Univ) = univ
+printTm (Pi lt t) = foldr (\a d -> printArgL a <+> arr <+> d) (printTm t) lt
 printTm (Arr t1 t2) = printTm t1 <+> arr <+> printTm t2
 printTm (PCon t []) = pretty t
 printTm (PCon name types) = pretty name <+> hsep (map printTm types)
@@ -101,8 +106,8 @@ printDef (DefTVar var t expr) =
   typeAnn (pretty var) (printTm t) <> hardline <>
   pretty var <+> assign <+> align (printTm expr) <> hardline
 
-printDef (DefPatt var params ty _ cons) =
-    typeAnn (pretty var) (printTm (foldr Arr ty (map snd params))) <> line <>
+printDef (DefPatt var ty _ cons) =
+    typeAnn (pretty var) (printTm ty) <> line <> -- (printTm (foldr Arr ty (map snd params))) <> line <>
     vsep (map (\(a, e) -> (pretty var) <+> hsep (map (pretty . arg) a) <+> assign <+> printTm e) cons)
 -- Function to print datatype definitions
 printDef (DefDataType name cons ty) =

@@ -3,6 +3,7 @@ module Tests (tests) where
 
 import Data.IntMap.Strict as Map ( fromList, IntMap )
 import qualified Data.Text as T
+import qualified Data.List.NonEmpty as NE
 import Numeric.Natural (Natural)
 import GHC.Natural (minusNatural)
 import Text.Show () -- just the instances
@@ -234,7 +235,7 @@ _tests =
         let
         decl = [DefDataType "D" (iter n (\ i -> (nm 'C' i, con "D"))) Univ, --create datatype
           OpenName "D",
-          DefPatt "F" [("C", con "D")] nat "C" (iter n (\i -> ([Arg (nm 'C' i) (con "D")], num i))),
+          DefPatt "F" (Pi (NE.singleton (Arg ["C"] (con "D"))) nat) "C" (iter n (\i -> ([Arg (nm 'C' i) (con "D")], num i))),
           DefTVar "N" nat (genCall n)]
         genCall p = foldr (\a b -> plus (app1 "F" (con (nm 'C' a))) b)
                                         (app1 "F" (con "C1"))

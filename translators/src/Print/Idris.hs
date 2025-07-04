@@ -47,9 +47,14 @@ printWithImport (ImportLib NatMod) m = m
 printWithImport (ImportLib StringMod) m = m
 printWithImport (ImportLib ListMod) m = m
 
+printArgL :: Arg [ Name ] Tm -> Doc ann
+printArgL (Arg [] t) = printTm t
+printArgL (Arg (x:xs) t) = teleCell (foldr (\ nm d -> pretty nm <+> d) (pretty x) xs)  (printTm t) 
+
 printTm :: Tm -> Doc ann
 printTm (Univ) = univ
 printTm (Arr t1 t2) = printTm t1 <+> arr <+> printTm t2
+printTm (Pi lt t) = foldr (\a d -> printArgL a <+> arr <+> d) (printTm t) lt
 printTm (PCon t []) = pretty t
 printTm (PCon "Vec" [PCon baseType [], size]) = "Vect" <+> printTm size <+> pretty baseType
 printTm (PCon name types) = pretty name <+> hsep (map printTm types)
@@ -99,8 +104,8 @@ printDef (DefTVar var t expr) =
   typeAnn (pretty var) (printTm t) <> hardline <>
   pretty var <+> assign <+> align (printTm expr) <> hardline
 
-printDef (DefPatt var params ty _ cons) =
-    typeAnn (pretty var) (printTm (foldr Arr ty (map snd params))) <> line <>
+printDef (DefPatt var ty _ cons) =
+    typeAnn (pretty var) (printTm ty) <> line <>
     vsep (map (\(a, e) -> (pretty var) <+> hsep (map (pretty . arg) a) <+> assign <+> printTm e) cons)
 printDef (DefDataType name cons ty) =
   data_ <+> typeAnn (pretty name) (printTm ty) <+> "where" <> hardline <>

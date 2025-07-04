@@ -4,6 +4,7 @@ module Grammar (Module (..), Import (..), Definition (..), Tm (..), Arg (..)
   , modname
   , nat, con, num, bool, list, vec, string, suc, plus, app1, appnm) where
 
+import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
 import Numeric.Natural (Natural)
 
@@ -23,8 +24,9 @@ data KnownMods = NatMod | ListMod | VecMod | StringMod
 newtype Import = ImportLib KnownMods
 
 data Definition
-  = DefPatt Name [(Name,Tm)] Tm Name [([Arg Name Tm], Tm)]
-    -- ^ Function name; name,type is parameters for Rocq; output type; name is input to match with for Rocq, constructors
+  = DefPatt Name Tm Name [([Arg Name Tm], Tm)]
+    -- ^ Function definition by pattern-matching.
+    -- Function name; signature; (Rocq only: Name for Match); constructors
   | DefTVar Name Tm Tm
     -- ^ Define a (top-level) variable with a type annotation, and a definiens
   | DefDataType Name [(Name,Tm)] Tm
@@ -32,7 +34,7 @@ data Definition
   | DefPDataType Name [(Name, Tm)] [(Name,Tm)] Tm
     -- ^ Datatype name, parameters, constructors, overall type
   | DefRecType Name [Arg Name Tm] Name [(Name,Tm)] Tm
-    -- ^ [Arg] for parameters (empty list if no params), (Maybe Name) is the type constructor
+    -- ^ [Arg] for parameters (empty list if no params), Name is the type constructor
   | DefRec Name Tm Name [(Name, Tm)]
     -- ^ Record name, record type, possible constructor type (this auto fills in, only needed for Chain dependent constructor test)
   | OpenName Name
@@ -47,7 +49,8 @@ data LocalDefn
 data Tm
   = PCon Name [Tm]        -- (parameterized) type constructor
   | DCon Name [Tm]        -- dependent type constructor (note that a dependent type is also parameterized)
-  | Arr Tm Tm             -- function type
+  | Arr Tm Tm             -- (non-dependent) function type
+  | Pi (NonEmpty (Arg [Name] Tm)) Tm -- Dependent function type
   | Index [Name] Tm
   | Univ                  -- a Universe, aka "Type" itself, called "Set" in Agda
   | Var Name

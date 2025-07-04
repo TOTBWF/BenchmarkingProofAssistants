@@ -52,6 +52,7 @@ printWithImport (ImportLib ListMod) m = m
 -- Print types
 printTm :: Tm -> Doc ann
 printTm (Univ) = univ
+printTm (Pi lt t) = foldr (\a d -> printArgL a <+> arr <+> d) (printTm t) lt
 printTm (Arr t1 t2) = printTm t1 <+> arr <+> printTm t2
 printTm (PCon t []) = pretty t
 printTm (PCon "Vec" args) = "Vector" <+> hsep (map printTm args)
@@ -85,6 +86,10 @@ printReturnType _ = error "show not occur as a return type"
 printArg :: Pretty a => Arg a Tm -> Doc ann
 printArg a = teleCell (pretty $ arg a) (printTm $ argty a)
 
+printArgL :: Arg [ Name ] Tm -> Doc ann
+printArgL (Arg [] t) = printTm t
+printArgL (Arg (x:xs) t) = teleCell (foldr (\ nm d -> pretty nm <+> d) (pretty x) xs)  (printTm t) 
+
 printLit :: Literal -> Doc ann
 printLit (Nat n) = pretty n
 printLit (Bool b) = pretty b
@@ -107,8 +112,8 @@ printLocalDefn (LocDefFun var (Just t) args expr) =
 printDef :: [Definition] -> Definition -> Doc ann
 printDef _ (DefTVar var t expr) = "def" <+> typeAnn (pretty var) (printTm t) <+>
   assign <+> printTm expr
-printDef _ (DefPatt var params ty _ cons) =
-    "def" <+> typeAnn (pretty var) (printTm (foldr Arr ty (map snd params))) <> hardline <>
+printDef _ (DefPatt var ty _ cons) =
+    "def" <+> typeAnn (pretty var) (printTm ty) <> hardline <>
     vsep (map (\(a, e) -> pipe <+> (hsep $ map (pretty . arg) a) <+> "=>" <+> (printTm e)) cons)
 printDef _ (DefDataType var args t) =
   "inductive" <+> typeAnn (pretty var) (printTm t) <+> "where" <> hardline <>

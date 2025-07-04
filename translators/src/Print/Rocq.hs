@@ -51,6 +51,7 @@ printImport (ImportLib ListMod) = emptyDoc
 
 printTm :: Tm -> Doc ann
 printTm (Univ) = univ
+printTm (Pi lt t) = foldr (\a d -> printArgL a <+> arr <+> d) (printTm t) lt
 printTm (Arr t1 t2) = printTm t1 <+> arr <+> printTm t2
 printTm (PCon t []) = pretty $ if  "Cap_" `T.isPrefixOf` t || "Record" `T.isPrefixOf` t
                              then t else (T.toLower t) -- if starts with keyword Cap_ maintain, else lower case
@@ -80,6 +81,15 @@ printReturnType _ = error "should not occur as a return type"
 printArg :: Pretty a => Arg a Tm -> Doc ann
 printArg a = parens $ typeAnn (pretty $ arg a) (printTm $ argty a)
 
+printArgL :: Arg [ Name ] Tm -> Doc ann
+printArgL (Arg [] t) = printTm t
+printArgL (Arg (x:xs) t) = teleCell (foldr (\ nm d -> pretty nm <+> d) (pretty x) xs)  (printTm t) 
+
+-- this is partial on purpose
+printTele :: Tm -> Doc ann
+printTele (Pi lt t) = foldr (\a d -> printArgL a <+> d) (":" <+> printTm t) lt
+printTele _ = error "expecting a Pi type, got something else"
+
 printLit :: Literal -> Doc ann
 printLit (Nat n) = pretty n
 printLit (Bool b) = pretty b
@@ -104,12 +114,11 @@ printDef :: Definition -> Doc ann
 printDef (DefTVar var t expr) =
   nest 4 ("Definition" <+> typeAnn (pretty var) (printTm t) <+> assign <> softline <>
   (printTm expr <> dot <> hardline))
-printDef (DefPatt var params ty m cons) = "Fixpoint" <+> pretty var <+>
-  typeAnn (hsep $ map (\(x, y) -> teleCell (pretty x) (printTm y)) params)
-          (printTm ty) <+> assign <> hardline <>
+printDef (DefPatt var ty m cons) = "Fixpoint" <+> pretty var <+> printTele ty
+          <+> assign <> hardline <>
   "match" <+> pretty m <+> "with" <> hardline <>
   vsep (map (\(a, e) -> pipe <+> (hsep $ map (pretty . T.toLower . arg) a) <+> "=>" <+> printTm e) cons)
-  <> softline' <> "end" <> dot <> hardline
+  <> softline' <+> "end" <> dot <> hardline
 printDef (DefDataType name args ty) = let
     printIndices :: Tm -> Doc ann
     printIndices (Arr (Index n t) ctype) = printTm (Index n t) <> comma <+> printTm ctype

@@ -15,7 +15,7 @@ match C with
 | c2 => 2
 | c3 => 3
 | c4 => 4
-| c5 => 5end.
+| c5 => 5 end.
 
 Definition N : nat := F c5 + F c4 + F c3 + F c2 + F c1.
 
