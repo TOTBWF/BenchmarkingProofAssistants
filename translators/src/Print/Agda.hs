@@ -110,17 +110,13 @@ printDef (DefPatt var ty _ cons) =
     typeAnn (pretty var) (printTm ty) <> line <> -- (printTm (foldr Arr ty (map snd params))) <> line <>
     vsep (map (\(a, e) -> (pretty var) <+> hsep (map (pretty . arg) a) <+> assign <+> printTm e) cons)
 -- Function to print datatype definitions
-printDef (DefDataType name cons ty) =
-  data_ <+> typeAnn (pretty name) (printTm ty) <+> "where" <> hardline <>
-  indent 1 (vsep (map (\(n, t) -> typeAnn (pretty n) (printTm t)) cons)) <>
-   line
 printDef (DefPDataType name params cons ty) =
-  data_ <+> 
-    typeAnn (pretty name <+> hsep (map (\(x, y) -> teleCell (pretty x) (printTm y)) params))
-              (printTm ty) <+> 
-    "where" <> hardline <>
+  data_ <+> typeAnn (pParams params) (printTm ty) <+> "where" <> hardline <>
     indent 1 (vsep (map (\(n,t) -> typeAnn (pretty n) (printTm t)) cons)) <>
     hardline
+    where
+      pParams [] = pretty name
+      pParams _  = pretty name <+> hsep (map (\(x, y) -> teleCell (pretty x) (printTm y)) params)
 
 -- Function for records
 printDef (DefRecType name params consName fields _) =

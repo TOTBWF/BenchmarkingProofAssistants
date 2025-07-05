@@ -119,23 +119,17 @@ printDef (DefPatt var ty m cons) = "Fixpoint" <+> pretty var <+> printTele ty
   "match" <+> pretty m <+> "with" <> hardline <>
   vsep (map (\(a, e) -> pipe <+> (hsep $ map (pretty . T.toLower . arg) a) <+> "=>" <+> printTm e) cons)
   <> softline' <+> "end" <> dot <> hardline
-printDef (DefDataType name args ty) = let
-    printIndices :: Tm -> Doc ann
-    printIndices (Arr (Index n t) ctype) = printTm (Index n t) <> comma <+> printTm ctype
-    printIndices t = printTm t
-    in
-        "Inductive" <+> typeAnn (pretty $ T.toLower name) (printTm ty) <+>
-        assign <> hardline <>
-        (vsep (map (\(x, y) -> pipe <+> typeAnn (pretty $ T.toLower x) (printIndices y)) args)) <> "."
-printDef (DefPDataType name params args ty) = let
+printDef (DefPDataType name params args ty) =
+  "Inductive" <+> printParams params <+> assign <> hardline <>
+  vsep (map (\(x, y) -> pipe <+> typeAnn (pretty $ T.toLower x) (printIndices y)) args) <> dot
+  where
     printIndices :: Tm -> Doc ann
     printIndices (Arr (Index n t) ctype) = (printTm (Index n t)) <> comma <+> (printTm ctype)
     printIndices t = printTm t
-    in
-        "Inductive" <+> (pretty $ T.toLower name) <+>
-         typeAnn (hsep (map (\(x, y) -> teleCell (pretty $ T.toLower x) (printTm y)) params))
-                 (printTm ty) <+> assign <> hardline <>
-         vsep (map (\(x, y) -> pipe <+> typeAnn (pretty $ T.toLower x) (printIndices y)) args) <> dot
+
+    printParams [] = typeAnn (pretty $ T.toLower name) (printTm ty)
+    printParams (_:_) =  (pretty $ T.toLower name) <+>
+      typeAnn (hsep (map (\(x, y) -> teleCell (pretty $ T.toLower x) (printTm y)) params)) (printTm ty)
 
 --Function for Records
 printDef (DefRecType name params consName fields _) =

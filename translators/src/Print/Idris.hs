@@ -107,21 +107,20 @@ printDef (DefTVar var t expr) =
 printDef (DefPatt var ty _ cons) =
     typeAnn (pretty var) (printTm ty) <> line <>
     vsep (map (\(a, e) -> (pretty var) <+> hsep (map (pretty . arg) a) <+> assign <+> printTm e) cons)
-printDef (DefDataType name cons ty) =
-  data_ <+> typeAnn (pretty name) (printTm ty) <+> "where" <> hardline <>
-  indent 1 (vsep (map (\(n, t) -> typeAnn (pretty n) (printTm t)) cons)) <>
-   hardline
 printDef (DefPDataType name params cons ty) =
   data_ <+> 
-    typeAnn (pretty name) prettyParams <+> arr <+> (printTm ty) <+> 
-    "where" <> hardline <> indent 1 (vsep (map prettyCon cons)) <> hardline
+    prettyParams params <+> "where" <> hardline <> indent 1 (vsep (map (prettyCon params) cons)) <> hardline
     where
       -- FIXME: do we really need this many arrows in the definitions?
-      prettyParams = concatWith (\x y -> x <+> arr <+> y) $
-                                map (\(x, y) -> teleCell (pretty x) (printTm y)) params
-      prettyCon (n, t) = typeAnn (pretty n) 
+      prettyParams [] = typeAnn (pretty name) (printTm ty)
+      prettyParams p = typeAnn (pretty name) (concatWith (\x y -> x <+> arr <+> y) $
+                                map (\(x, y) -> teleCell (pretty x) (printTm y)) p)
+                           <+> arr <+> printTm ty
+
+      prettyCon [] (n, t) = typeAnn (pretty n) (printTm t)
+      prettyCon p  (n, t) = typeAnn (pretty n) 
                                  (encloseSep emptyDoc (space <> arr) (space <> arr <> space) 
-                                      (map (pretty.fst) params)) <+> 
+                                      (map (pretty.fst) p)) <+> 
                          printTm t
 
 printDef (DefRecType name params consName fields _) =

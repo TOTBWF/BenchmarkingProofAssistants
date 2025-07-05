@@ -29,8 +29,6 @@ data Definition
     -- Function name; signature; (Rocq only: Name for Match); constructors
   | DefTVar Name Tm Tm
     -- ^ Define a (top-level) variable with a type annotation, and a definiens
-  | DefDataType Name [(Name,Tm)] Tm
-    -- ^ Datatype name, constructors, usually type is Set
   | DefPDataType Name [(Name, Tm)] [(Name,Tm)] Tm
     -- ^ Datatype name, parameters, constructors, overall type
   | DefRecType Name [Arg Name Tm] Name [(Name,Tm)] Tm

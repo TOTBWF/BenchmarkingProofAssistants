@@ -80,7 +80,7 @@ _tests =
 
         in Module "NestedFunction" [ImportLib NatMod] $ trivial n decl
     , \n -> let --4 A specified number of simple datatype declarations.
-      genData m = foldl (\b a -> DefDataType (nm 'X' a) [(nm 'Y' a, con (nm 'X' a))] Univ : b) [] [1..m]
+      genData m = foldl (\b a -> DefPDataType (nm 'X' a) [] [(nm 'Y' a, con (nm 'X' a))] Univ : b) [] [1..m]
         in Module "DataSimpleDeclarations" [ImportLib NatMod]  $ genData n
     , \n ->     --5 Variable declaration with an identifier of a specified length.
            Module "LongIdentifier" [ImportLib NatMod]  $ trivial n [DefTVar (T.pack $ replicate (fromIntegral n) 'x') nat $ num 0]
@@ -167,7 +167,7 @@ _tests =
     in Module "ChainDefFields_NonDependentRecordModule" [ImportLib NatMod] $ trivial n (genRecords n)
 
     , \n -> --12 Description: create a simple datatype with N constructors accepting no parameters
-        Module "Constructors_Datatypes" [] $ trivial n [DefDataType "D" (iter n (\ i -> (nm 'C' i, con "D"))) Univ]
+        Module "Constructors_Datatypes" [] $ trivial n [DefPDataType "D" [] (iter n (\ i -> (nm 'C' i, con "D"))) Univ]
 
     , \n ->  --13 Description: creates a datatype with a single constructor accepting N parameters
         let
@@ -206,7 +206,7 @@ _tests =
     in Module "DeepDependency_VariableModule" [ImportLib NatMod] $ trivial n (genLevelDefs n)
 
     , \n -> let -- 16 Description: Simple datatype declaration with a specified number of indices, defined implicitly.
-        decl = [DefDataType "D" [("C1", Arr (Index (genIndex 'x' n) nat) (con ("D " `T.append` T.unwords (genIndex 'x' n))))]
+        decl = [DefPDataType "D" [] [("C1", Arr (Index (genIndex 'x' n) nat) (con ("D " `T.append` T.unwords (genIndex 'x' n))))]
                             (Arr (nary nat (n-1)) Univ)]
        in Module "DataImplicitIndices" [ImportLib NatMod] $ trivial n decl
 
@@ -221,7 +221,7 @@ _tests =
         in Module "ConstructorsParameters_Datatypes" [] $ trivial n decl
 
     , \n -> let -- 19  Description: A single datatype where 'n' represents the number of indices, all needed for 'n' constructors
-        decl = [DefDataType "D"
+        decl = [DefPDataType "D" []
            (iter n (\ i -> (nm 'C' i, Arr (Index (genIndex 'x' i) nat)
                                           (PCon "D" $ iter n (\j -> if j <= i then con (nm 'X' j) else con "0"))
                                       ))) (Arr (nary nat (n-1)) Univ)]
@@ -233,7 +233,7 @@ _tests =
         in Module "IndicesParameters_Datatypes" [ImportLib NatMod] $ trivial n decl
     ,  \n -> --21 Description: A function pattern matching on 'n' constructors of a datatype
         let
-        decl = [DefDataType "D" (iter n (\ i -> (nm 'C' i, con "D"))) Univ, --create datatype
+        decl = [DefPDataType "D" [] (iter n (\ i -> (nm 'C' i, con "D"))) Univ, --create datatype
           OpenName "D",
           DefPatt "F" (Pi (NE.singleton (Arg ["C"] (con "D"))) nat) "C" (iter n (\i -> ([Arg (nm 'C' i) (con "D")], num i))),
           DefTVar "N" nat (genCall n)]

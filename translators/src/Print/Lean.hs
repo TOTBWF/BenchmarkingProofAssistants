@@ -115,16 +115,14 @@ printDef _ (DefTVar var t expr) = "def" <+> typeAnn (pretty var) (printTm t) <+>
 printDef _ (DefPatt var ty _ cons) =
     "def" <+> typeAnn (pretty var) (printTm ty) <> hardline <>
     vsep (map (\(a, e) -> pipe <+> (hsep $ map (pretty . arg) a) <+> "=>" <+> (printTm e)) cons)
-printDef _ (DefDataType var args t) =
-  "inductive" <+> typeAnn (pretty var) (printTm t) <+> "where" <> hardline <>
-   vsep (map (\(x, y) -> pipe <+> typeAnn (pretty x) (printTm y)) args)
-printDef _ (DefPDataType var params args t) =
-   "inductive" <+>
-       typeAnn (pretty var <+> hsep (map (\(x, y) -> teleCell (pretty x) (printTm y)) params))
-       (printTm t) <+> "where" <> hardline <>
-   vsep (map (\(x, y) -> pipe <+> typeAnn (pretty x) (printTm y)) args)
-   -- unwords (map (\(x, y) -> parens (x ++ typedel ++ printTm y)) params) ++ typedel ++
-   -- printTm t ++ " where " ++ unwords (map (\(x, y) -> "\n| " ++ x ++ typedel ++ (printTm y)) args)
+printDef _ (DefPDataType name params args t) =
+  "inductive" <+>
+      typeAnn (pParams params) (printTm t) <+> "where" <> hardline <>
+  vsep (map (\(x, y) -> pipe <+> typeAnn (pretty x) (printTm y)) args)
+  where
+    pParams [] = pretty name
+    pParams _  = pretty name <+> hsep (map (\(x, y) -> teleCell (pretty x) (printTm y)) params)
+
 
 -- records Def
 printDef _ (DefRecType name params consName fields _) =
