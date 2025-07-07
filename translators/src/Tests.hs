@@ -25,8 +25,8 @@ iter n f = map f [1..n]
 nm :: Char -> Natural -> T.Text
 nm c n = T.cons c $ T.show n
 
-genIndex :: Char -> Natural -> [T.Text]
-genIndex c m = iter m (nm c)
+nms :: Char -> Natural -> [T.Text]
+nms c m = iter m (nm c)
 
 v :: Char -> Natural -> Tm
 v c n = Var $ nm c n
@@ -88,9 +88,9 @@ _tests =
     -- 6 Description: A record declaration with N dependent fields
     ,\n -> let --6
         -- Generate field definitions dynamically
-        genFields :: Natural -> [(Name, Tm)]
-        genFields p = ("f1", nat) :
-                      (foldr (\a b -> (nm 'f' a, PCon "Vec" [nat, genSize (a-1)]) : b) [] $ [2..p])
+        genFields :: Natural -> FieldDecl
+        genFields p = decfields $ fieldty "f1"  nat :
+                      (foldr (\a b -> fieldty (nm 'f' a) (PCon "Vec" [nat, genSize (a-1)]) : b) [] $ [2..p])
 
         -- Helper function to correctly reference `suc` or `S`
         genSize p = foldr (\_ b -> suc b) (Var "f1") [2..p]
@@ -112,8 +112,9 @@ _tests =
     \n -> let
         -- Generate Record Definitions
         genRecords :: Natural -> [Definition]
-        genRecords p = foldr (\(i,c) b -> DefRecType (mkName "Record" i) [] (mkName "Const" i)
-          [(nm 'f' i, c)] Univ : b) [] $ ((1, nat) : map (\i -> (i, con (mkName "Record" (i-1)))) [2..p])
+        genRecords p = foldr (\ (i,c) b -> DefRecType (mkName "Record" i) [] (mkName "Const" i)
+          (decfields [fieldty (nm 'f' i) c]) Univ : b)
+          [] $ ((1, nat) : map (\i -> (i, con (mkName "Record" (i-1)))) [2..p])
 
         -- Generate Example Init
         genExample :: Natural -> Tm
@@ -135,7 +136,7 @@ _tests =
 
         -- Define the record X with param, a constructor "Const",
         -- two fields "sums" and "values", and overall type Set.
-        recDef = DefRecType "X" params "Const" [("sums", nat)] (con "Set")
+        recDef = DefRecType "X" params "Const" (decfields [fieldty "sums" nat]) (con "Set")
 
         -- Build the record type application as a string: "X 1 2 ... n"
         recTypeInstance = DCon "X" $ iter n num
@@ -149,7 +150,7 @@ _tests =
 
     , \n -> let -- 10 Description: A record declaration with N independent fields
         -- Generate field definitions dynamically
-        genFields p = foldr (\a b -> (nm 'f' a, nat) : b) [] [1..p]
+        genFields p = decfields $ foldr (\a b -> fieldty (nm 'f' a) nat : b) [] [1..p]
         -- Define the record structure
         xDef = DefRecType "Cap_X" [] "Const" (genFields n) Univ
         -- Generate example initialization dynamically
@@ -162,7 +163,8 @@ _tests =
         exampleInit = DefRec "example" (con $ mkName "Record" n) (mkName "Const" n) [("f1", num 1)]
         -- Generate Record Definitions
         genRecords :: Natural -> [Definition]
-        genRecords p = foldl (\b a -> DefRecType (mkName "Record" a) [] (mkName "Const" a) [(nm 'f' a, nat)] Univ : b)
+        genRecords p = foldl (\b a -> DefRecType (mkName "Record" a) [] (mkName "Const" a) 
+                             (decfields [fieldty (nm 'f' a) nat]) Univ : b)
                              [exampleInit] $ reverse [1..p]
     in Module "ChainDefFields_NonDependentRecordModule" [ImportLib NatMod] $ trivial n (genRecords n)
 
@@ -206,7 +208,7 @@ _tests =
     in Module "DeepDependency_VariableModule" [ImportLib NatMod] $ trivial n (genLevelDefs n)
 
     , \n -> let -- 16 Description: Simple datatype declaration with a specified number of indices, defined implicitly.
-        decl = [DefPDataType "D" [] [("C1", Arr (Index (genIndex 'x' n) nat) (con ("D " `T.append` T.unwords (genIndex 'x' n))))]
+        decl = [DefPDataType "D" [] [("C1", Arr (Index (nms 'x' n) nat) (con ("D " `T.append` T.unwords (nms 'x' n))))]
                             (Arr (nary nat (n-1)) Univ)]
        in Module "DataImplicitIndices" [ImportLib NatMod] $ trivial n decl
 
@@ -222,13 +224,13 @@ _tests =
 
     , \n -> let -- 19  Description: A single datatype where 'n' represents the number of indices, all needed for 'n' constructors
         decl = [DefPDataType "D" []
-           (iter n (\ i -> (nm 'C' i, Arr (Index (genIndex 'x' i) nat)
+           (iter n (\ i -> (nm 'C' i, Arr (Index (nms 'x' i) nat)
                                           (PCon "D" $ iter n (\j -> if j <= i then con (nm 'X' j) else con "0"))
                                       ))) (Arr (nary nat (n-1)) Univ)]
         in Module "IndicesConstructors_Datatypes" [ImportLib NatMod] $ trivial n decl
     , \n -> let -- 20  Description: A single datatype where 'n' represents the number of 'Type' parameters as well as the number of indices
         decl = [DefPDataType "D" (iter n (\i -> (nm 'p' i, Univ)))
-          [("C", Arr (Index (genIndex 'X' n) nat) (PCon "D" ((iter n (con . nm 'p')) ++ iter n (con . nm 'X'))))]
+          [("C", Arr (Index (nms 'X' n) nat) (PCon "D" ((iter n (con . nm 'p')) ++ iter n (con . nm 'X'))))]
           (Arr (nary nat (n-1)) Univ)]
         in Module "IndicesParameters_Datatypes" [ImportLib NatMod] $ trivial n decl
     ,  \n -> --21 Description: A function pattern matching on 'n' constructors of a datatype

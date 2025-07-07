@@ -57,6 +57,7 @@ printTm (Pi lt t) = foldr (\a d -> printArgL a <+> arr <+> d) (printTm t) lt
 printTm (Arr t1 t2) = printTm t1 <+> arr <+> printTm t2
 printTm (PCon t []) = pretty t
 printTm (PCon name types) = pretty name <+> hsep (map printTm types)
+printTm (DCon t []) = pretty t
 printTm (DCon name types) = pretty name <+> hsep (map printTm types)
 printTm (Index names ty) = braces $ typeAnn (hsep $ map pretty names) (printTm ty)
 printTm (Var var) = pretty var
@@ -79,6 +80,12 @@ printOp1 Suc = "suc"
 
 printOp2 :: Op2 -> Doc ann
 printOp2 Plus = "+"
+
+printFieldT :: FieldT -> Doc ann
+printFieldT (FieldT fname ftype) = typeAnn (pretty fname) (printTm ftype)
+
+printFieldDecl :: FieldDecl -> Doc ann
+printFieldDecl (FieldDecl fields) = vsep $ map printFieldT fields
 
 printLit :: Literal -> Doc ann
 printLit (Nat n) = pretty n
@@ -121,9 +128,7 @@ printDef (DefPDataType name params cons ty) =
 -- Function for records
 printDef (DefRecType name params consName fields _) =
     rec <+> typeAnn pp_params univ <+> "where" <> line <>
-    indent 4 (vsep $ "constructor" <+> pretty consName : "field" : 
-       (indent 4 $ vsep $ map (\(fname, ftype) -> typeAnn (pretty fname) (printTm ftype)) fields)
-       : []) <>
+    indent 4 (vsep $ "constructor" <+> pretty consName : "field" : (indent 4 $ printFieldDecl fields) : []) <>
     hardline
     where
       ll = map (\(Arg n t) -> teleCell (pretty n) (printTm t)) params

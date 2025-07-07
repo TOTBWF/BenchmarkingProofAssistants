@@ -103,6 +103,12 @@ printOp1 Suc = "S"
 printOp2 :: Op2 -> Doc ann
 printOp2 Plus = "+"
 
+printFieldT :: FieldT -> Doc ann
+printFieldT (FieldT fname ftype) = typeAnn (pretty fname) (printTm ftype) <> semi
+
+printFieldDecl :: FieldDecl -> Doc ann
+printFieldDecl (FieldDecl fields) = vsep $ map printFieldT fields
+
 printLocalDefn :: LocalDefn -> Doc ann
 printLocalDefn (LocDefFun var Nothing args expr) =
   prettyArgs var printArg args <+> assign <+> printTm expr
@@ -132,11 +138,9 @@ printDef (DefPDataType name params args ty) =
       typeAnn (hsep (map (\(x, y) -> teleCell (pretty $ T.toLower x) (printTm y)) params)) (printTm ty)
 
 --Function for Records
-printDef (DefRecType name params consName fields _) =
+printDef (DefRecType name params consName fields _) = 
     rec <+> typeAnn recName univ <+> assign <+> pretty consName <+>
-    lbrace <> hardline <>
-      indent 2 (vsep (map (\(fname, ftype) -> typeAnn (pretty fname) (printTm ftype) <> semi) fields))
-      <> hardline <> rbrace <> dot <> hardline
+    lbrace <> hardline <> indent 2 (printFieldDecl fields) <> hardline <> rbrace <> dot <> hardline
     where
         recName = case params of
             [] -> pretty name

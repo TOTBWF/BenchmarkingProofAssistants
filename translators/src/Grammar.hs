@@ -1,8 +1,10 @@
 module Grammar (Module (..), Import (..), Definition (..), Tm (..), Arg (..)
   , KnownMods (..), Op1 (..), Op2 (..), LocalDefn (..), Literal (..)
+  , FieldDecl (..), FieldT (..)
   , Name
   , modname
-  , nat, con, num, bool, list, vec, string, suc, plus, app1, appnm) where
+  , nat, con, num, bool, list, vec, string, suc, plus, app1, appnm
+  , decfields, fieldty) where
 
 import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
@@ -31,7 +33,7 @@ data Definition
     -- ^ Define a (top-level) variable with a type annotation, and a definiens
   | DefPDataType Name [(Name, Tm)] [(Name,Tm)] Tm
     -- ^ Datatype name, parameters, constructors, overall type
-  | DefRecType Name [Arg Name Tm] Name [(Name,Tm)] Tm
+  | DefRecType Name [Arg Name Tm] Name FieldDecl Tm
     -- ^ [Arg] for parameters (empty list if no params), Name is the type constructor
   | DefRec Name Tm Name [(Name, Tm)]
     -- ^ Record name, record type, possible constructor type (this auto fills in, only needed for Chain dependent constructor test)
@@ -63,6 +65,14 @@ data Tm
   -- | Lam                  -- we don't as-yet use it?
 
 data Arg a b = Arg { arg :: a, argty :: b }
+
+-- Separate FieldT and FieldV for printing purposes
+-- A single Field type
+data FieldT = FieldT Name Tm
+-- A single Field value
+data FieldV = FieldV Name Tm
+
+newtype FieldDecl = FieldDecl [FieldT]
 
 data Literal
   = Nat Natural
@@ -124,3 +134,9 @@ app1 a b = App (Var a) [b]
 
 appnm :: Name -> [Tm] -> Tm
 appnm a b = App (Var a) b
+
+fieldty :: Name -> Tm -> FieldT
+fieldty = FieldT
+
+decfields :: [FieldT] -> FieldDecl
+decfields = FieldDecl

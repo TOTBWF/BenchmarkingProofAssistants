@@ -57,6 +57,7 @@ printTm (Arr t1 t2) = printTm t1 <+> arr <+> printTm t2
 printTm (PCon t []) = pretty t
 printTm (PCon "Vec" args) = "Vector" <+> hsep (map printTm args)
 printTm (PCon name types) = pretty name <+> hsep (map printTm types)
+printTm (DCon t []) = pretty t
 printTm (DCon name types) = pretty name <+> hsep (map printTm types)
 printTm (Index names ty) = braces $ typeAnn (hsep (map pretty names)) (printTm ty)
 printTm (Var var) = pretty var
@@ -103,6 +104,12 @@ printOp1 Suc = "Nat.succ"  -- use `Nat.succ` explicitly
 printOp2 :: Op2 -> Doc ann
 printOp2 Plus = "+"
 
+printFieldT :: FieldT -> Doc ann
+printFieldT (FieldT fname ftype) = typeAnn (pretty fname) (printTm ftype)
+
+printFieldDecl :: FieldDecl -> Doc ann
+printFieldDecl (FieldDecl fields) = vsep $ map printFieldT fields
+
 printLocalDefn :: LocalDefn -> Doc ann
 printLocalDefn (LocDefFun var Nothing args expr) =
   prettyArgs var printArg args <+> assign <+> printTm expr
@@ -123,18 +130,14 @@ printDef _ (DefPDataType name params args t) =
     pParams [] = pretty name
     pParams _  = pretty name <+> hsep (map (\(x, y) -> teleCell (pretty x) (printTm y)) params)
 
-
 -- records Def
 printDef _ (DefRecType name params consName fields _) =
     "structure" <+> prettyParams <+> "where" <> hardline <>
-    indent 4 (pretty consName <+> "::" <> hardline <>
-    vsep (map (\(fname, ftype) -> typeAnn (pretty fname) (printTm ftype)) fields)) <>
-    hardline
+    indent 4 (pretty consName <+> "::" <> hardline <> printFieldDecl fields) <> hardline
       where
         prettyParams = case params of
             [] -> pretty name
             _ -> pretty name <+> hsep (map (\(Arg n t) -> teleCell (pretty n) (printTm t)) params)
-
 
 -- OpenLine: It takes a list of record definitions (recs) and uses it to build an open line.
 -- Exclusive lean syntax needed for simplicity
