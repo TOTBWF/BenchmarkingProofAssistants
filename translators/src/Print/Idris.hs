@@ -19,7 +19,7 @@ class Keywords rep where
   import_ :: rep
   assign  :: rep
   data_   :: rep
-  rec     :: rep
+  recrd   :: rep
   univ    :: rep
   arr     :: rep
 
@@ -27,7 +27,7 @@ instance Keywords (Doc ann) where
   import_ = "import"
   assign  = "="
   data_   = "data"
-  rec     = "record"
+  recrd   = "record"
   univ    = "Type"
   arr     = "->"
 
@@ -121,26 +121,26 @@ printDef (DefPDataType name params cons ty) =
       -- FIXME: do we really need this many arrows in the definitions?
       prettyParams [] = typeAnn (pretty name) (printTm ty)
       prettyParams p = typeAnn (pretty name) (concatWith (\x y -> x <+> arr <+> y) $
-                                map (\(x, y) -> teleCell (pretty x) (printTm y)) p)
+                                map (\(Arg x y) -> teleCell (pretty x) (printTm y)) p)
                            <+> arr <+> printTm ty
 
       prettyCon [] (n, t) = typeAnn (pretty n) (printTm t)
       prettyCon p  (n, t) = typeAnn (pretty n) 
                                  (encloseSep emptyDoc (space <> arr) (space <> arr <> space) 
-                                      (map (pretty.fst) p)) <+> 
+                                      (map (pretty.arg) p)) <+> 
                          printTm t
 
 printDef (DefRecType name params consName fields _) =
-    rec <+> pp_params <+> "where" <> hardline <>
+    recrd <+> pp_params <+> "where" <> hardline <>
     indent 4 (vsep $ "constructor" <+> pretty consName : printFieldDecl fields : []) <>
     hardline
     where
       ll = map (\(Arg n t) -> teleCell (pretty n) (printTm t)) params
       pp_params = if null params then pretty name else pretty name <+> hsep ll
 
-printDef (DefRec name recType consName fields) =
+printDef (DefRec name recType consName (FieldDef fields)) =
     typeAnn (pretty name) (printTm recType) <> hardline <> 
-    pretty name <+> assign <+> pretty consName <+> nest 4 (sep (map (printTm . snd) fields)) <>
+    pretty name <+> assign <+> pretty consName <+> nest 4 (sep (map (printTm . fval) fields)) <>
     hardline
 
 printDef (OpenName _) = emptyDoc

@@ -1,10 +1,10 @@
 module Grammar (Module (..), Import (..), Definition (..), Tm (..), Arg (..)
   , KnownMods (..), Op1 (..), Op2 (..), LocalDefn (..), Literal (..)
-  , FieldDecl (..), FieldT (..)
+  , FieldDecl (..), FieldT (..), FieldV (..), FieldDef (..)
   , Name
   , modname
   , nat, con, num, bool, list, vec, string, suc, plus, app1, appnm
-  , decfields, fieldty) where
+  , decfields, fieldty, fv, rec) where
 
 import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
@@ -31,12 +31,12 @@ data Definition
     -- Function name; signature; (Rocq only: Name for Match); constructors
   | DefTVar Name Tm Tm
     -- ^ Define a (top-level) variable with a type annotation, and a definiens
-  | DefPDataType Name [(Name, Tm)] [(Name,Tm)] Tm
+  | DefPDataType Name Parameters [(Name,Tm)] Tm
     -- ^ Datatype name, parameters, constructors, overall type
-  | DefRecType Name [Arg Name Tm] Name FieldDecl Tm
+  | DefRecType Name Parameters Name FieldDecl Tm
     -- ^ [Arg] for parameters (empty list if no params), Name is the type constructor
-  | DefRec Name Tm Name [(Name, Tm)]
-    -- ^ Record name, record type, possible constructor type (this auto fills in, only needed for Chain dependent constructor test)
+  | DefRec Name Tm Name FieldDef
+    -- ^ Record name, record type, constructor, field definitions
   | OpenName Name
     -- ^ Just for Lean, to refer to user-defined datatypes directly
   | Separator Char Natural Bool
@@ -62,17 +62,19 @@ data Tm
   | App Tm [Tm]
   | Paren Tm
   | Lit Literal
+  -- | Record (Maybe Name) [FieldV]       -- a record value
   -- | Lam                  -- we don't as-yet use it?
 
 data Arg a b = Arg { arg :: a, argty :: b }
 
 -- Separate FieldT and FieldV for printing purposes
 -- A single Field type
-data FieldT = FieldT Name Tm
+data FieldT = FieldT { fname :: Name, fty :: Tm }
 -- A single Field value
-data FieldV = FieldV Name Tm
+data FieldV = FieldV { flabel :: Name, fval :: Tm }
 
 newtype FieldDecl = FieldDecl [FieldT]
+newtype FieldDef  = FieldDef  [FieldV]       -- a record value
 
 data Literal
   = Nat Natural
@@ -97,6 +99,7 @@ data Op1 = Suc
 
 -- aliases for readability purposes
 type Name = Text
+type Parameters = [Arg Name Tm]
 
 
 --------------------------
@@ -138,5 +141,11 @@ appnm a b = App (Var a) b
 fieldty :: Name -> Tm -> FieldT
 fieldty = FieldT
 
+fv :: Name -> Tm -> FieldV
+fv = FieldV
+
 decfields :: [FieldT] -> FieldDecl
 decfields = FieldDecl
+
+rec :: [FieldV] -> FieldDef
+rec = FieldDef

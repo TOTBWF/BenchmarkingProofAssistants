@@ -20,13 +20,13 @@ class Keywords rep where
   import_ :: rep
   assign  :: rep
   univ    :: rep
-  rec     :: rep
+  recrd   :: rep
   arr     :: rep
 
 instance Keywords (Doc ann) where
   import_ = "Require" <+> "Import"
   assign  = ":="
-  rec     = "Record"
+  recrd   = "Record"
   univ    = "Type"
   arr     = "->"
 
@@ -135,18 +135,18 @@ printDef (DefPDataType name params args ty) =
 
     printParams [] = typeAnn (pretty $ T.toLower name) (printTm ty)
     printParams (_:_) =  (pretty $ T.toLower name) <+>
-      typeAnn (hsep (map (\(x, y) -> teleCell (pretty $ T.toLower x) (printTm y)) params)) (printTm ty)
+      typeAnn (hsep (map ( \(Arg x y) -> teleCell (pretty $ T.toLower x) (printTm y)) params)) (printTm ty)
 
 --Function for Records
 printDef (DefRecType name params consName fields _) = 
-    rec <+> typeAnn recName univ <+> assign <+> pretty consName <+>
+    recrd <+> typeAnn recName univ <+> assign <+> pretty consName <+>
     lbrace <> hardline <> indent 2 (printFieldDecl fields) <> hardline <> rbrace <> dot <> hardline
     where
         recName = case params of
             [] -> pretty name
             _ -> pretty name <+> hsep (map (\(Arg n t) -> teleCell (pretty n) (printTm t)) params)
 
-printDef (DefRec name recType consName fields) =
+printDef (DefRec name recType consName (FieldDef fields)) =
   "Definition" <+> typeAnn (pretty name) (printTm recType) <+> assign <> hardline <>
   indent 2 constructorCall <> dot <> hardline
   where
@@ -155,10 +155,10 @@ printDef (DefRec name recType consName fields) =
       (PCon _ _)   -> Nothing
       _            -> error "invalid type for a record"
 
-    printFieldDef (a , b) = pretty a <+> assign <+> printTm b <> semi
+    printFieldDef (FieldV a b) = pretty a <+> assign <+> printTm b <> semi
 
     constructorCall = case hasParams of
-      Nothing -> pretty consName <+> hsep (map (printTm . snd) fields)
+      Nothing -> pretty consName <+> hsep (map (printTm . fval) fields)
       Just _  -> pretty consName <+> braces (pipe <+> (hsep $ map printFieldDef fields) <+> pipe)
 
 printDef (OpenName _) = emptyDoc

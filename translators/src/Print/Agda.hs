@@ -17,7 +17,7 @@ newtype Agda ann = Agda {get :: Doc ann}
 class Keywords rep where
   import_ :: rep
   assign  :: rep
-  rec     :: rep
+  recrd   :: rep
   univ    :: rep
   data_   :: rep
   arr     :: rep
@@ -26,7 +26,7 @@ class Keywords rep where
 instance Keywords (Doc ann) where
   import_ = "open" <+> "import"
   assign  = "="
-  rec     = "record"
+  recrd   = "record"
   univ    = "Set"
   data_   = "data"
   arr     = "->"
@@ -123,20 +123,20 @@ printDef (DefPDataType name params cons ty) =
     hardline
     where
       pParams [] = pretty name
-      pParams _  = pretty name <+> hsep (map (\(x, y) -> teleCell (pretty x) (printTm y)) params)
+      pParams _  = pretty name <+> hsep (map (\(Arg x y) -> teleCell (pretty x) (printTm y)) params)
 
 -- Function for records
 printDef (DefRecType name params consName fields _) =
-    rec <+> typeAnn pp_params univ <+> "where" <> line <>
+    recrd <+> typeAnn pp_params univ <+> "where" <> line <>
     indent 4 (vsep $ "constructor" <+> pretty consName : "field" : (indent 4 $ printFieldDecl fields) : []) <>
     hardline
     where
       ll = map (\(Arg n t) -> teleCell (pretty n) (printTm t)) params
       pp_params = if null params then pretty name else pretty name <+> hsep ll
 
-printDef (DefRec name recTm consName fields) =
+printDef (DefRec name recTm consName (FieldDef fields)) =
     typeAnn (pretty name) (printTm recTm) <> hardline <> 
-    pretty name <+> assign <+> pretty consName <+> nest 4 (sep (map (printTm . snd) fields))
+    pretty name <+> assign <+> pretty consName <+> nest 4 (sep (map (printTm . fval) fields))
 
 printDef (OpenName _) = mempty
 printDef (Separator '\n' n _) = vcat $ replicate (fromIntegral n) emptyDoc

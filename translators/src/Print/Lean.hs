@@ -128,7 +128,7 @@ printDef _ (DefPDataType name params args t) =
   vsep (map (\(x, y) -> pipe <+> typeAnn (pretty x) (printTm y)) args)
   where
     pParams [] = pretty name
-    pParams _  = pretty name <+> hsep (map (\(x, y) -> teleCell (pretty x) (printTm y)) params)
+    pParams _  = pretty name <+> hsep (map (\(Arg x y) -> teleCell (pretty x) (printTm y)) params)
 
 -- records Def
 printDef _ (DefRecType name params consName fields _) =
@@ -141,10 +141,10 @@ printDef _ (DefRecType name params consName fields _) =
 
 -- OpenLine: It takes a list of record definitions (recs) and uses it to build an open line.
 -- Exclusive lean syntax needed for simplicity
-printDef recs (DefRec name recType consName fields) =
+printDef recs (DefRec name recType consName (FieldDef fields)) =
     openLine <>
     typeAnn (pretty name) (printTm recType) <+> assign <+> pretty consName <+>
-    hsep (map (printTm . snd) fields)
+    hsep (map (printTm . fval) fields)
   where
     recNamesList = [ rName | DefRecType rName _ _ _ _ <- recs ]
     openLine = if null recNamesList then emptyDoc else "open" <+> hsep (map pretty recNamesList) <> hardline
