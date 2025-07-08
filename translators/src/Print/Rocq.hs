@@ -154,16 +154,12 @@ printDef (DefRec name recType consName fields) =
       (DCon _ tys) -> Just tys
       (PCon _ _)   -> Nothing
       _            -> error "invalid type for a record"
-    parameters = maybe emptyDoc (\tys -> hsep $ map printTm tys) hasParams
-    -- Use the provided constructor name if available; otherwise, look up the default.
 
-    fieldsStr = hsep $ map (printTm . snd) fields
+    printFieldDef (a , b) = pretty a <+> assign <+> printTm b <> semi
 
-    -- If there are parameters, insert them between the constructor name and the field values.
-    constructorCall =
-      case hasParams of
-        Nothing -> pretty consName <+> fieldsStr
-        Just _  -> pretty consName <+> parameters <+> fieldsStr
+    constructorCall = case hasParams of
+      Nothing -> pretty consName <+> hsep (map (printTm . snd) fields)
+      Just _  -> pretty consName <+> braces (pipe <+> (hsep $ map printFieldDef fields) <+> pipe)
 
 printDef (OpenName _) = emptyDoc
 printDef (Separator c n b) =
