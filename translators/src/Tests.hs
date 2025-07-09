@@ -245,7 +245,8 @@ _tests =
         let
         decl = [DefPDataType "D" [] (datacons $ iter n (\ i -> dcons (nm 'C' i) (con "D"))) Univ, --create datatype
           OpenName "D",
-          DefPatt "F" (Pi (NE.singleton (Arg ["C"] (con "D"))) nat) "C" (iter n (\i -> ([Arg (nm 'C' i) (con "D")], num i))),
+          DefPatt "F" (Pi (NE.singleton (Arg ["C"] (con "D"))) nat) "C" 
+              (match $ iter n (\i -> (case_ [Arg (nm 'C' i) (con "D")] (num i)))),
           DefTVar "N" nat (genCall n)]
         genCall p = foldr (\a b -> plus (app1 "F" (con (nm 'C' a))) b)
                                         (app1 "F" (con "C1"))

@@ -122,6 +122,12 @@ printConstr (Constr nm ty) = pipe <+> typeAnn (pretty nm) (printIndices ty)
 printDataCons :: DataCons -> Doc ann
 printDataCons (DataCons l) = vsep $ map printConstr l
 
+printCase :: Pat -> Doc ann
+printCase (Pat a e) = pipe <+> (hsep $ map (pretty . arg) a) <+> "=>" <+> printTm e
+
+printMatch :: Patterns -> Doc ann
+printMatch (Patterns p) = vsep (map printCase p)
+
 printLocalDefn :: LocalDefn -> Doc ann
 printLocalDefn (LocDefFun var Nothing args expr) =
   prettyArgs var printArg args <+> assign <+> printTm expr
@@ -136,8 +142,8 @@ printDef (DefTVar var t expr) =
 printDef (DefPatt var ty m cons) = "Fixpoint" <+> pretty var <+> printTele ty
           <+> assign <> hardline <>
   "match" <+> pretty m <+> "with" <> hardline <>
-  vsep (map (\(a, e) -> pipe <+> (hsep $ map (pretty . arg) a) <+> "=>" <+> printTm e) cons)
-  <> softline' <+> "end" <> dot <> hardline
+  printMatch cons <> softline' <+> "end" <> dot <> hardline
+
 printDef (DefPDataType name params constr ty) =
   "Inductive" <+> printParams params <+> assign <> hardline <> printDataCons constr <> dot
   where

@@ -1,11 +1,11 @@
 module Grammar (Module (..), Import (..), Definition (..), Tm (..), Arg (..)
   , KnownMods (..), Op1 (..), Op2 (..), LocalDefn (..), Literal (..)
   , FieldDecl (..), FieldT (..), FieldV (..), FieldDef (..), KnownT (..)
-  , DataCons (..), Constr (..), Parameters
+  , DataCons (..), Constr (..), Parameters, Patterns (..), Pat (..)
   , Name
   , modname
   , nat, con, num, bool, list, vec, vecT, string, stringT, suc, plus, app1, appnm
-  , decfields, fieldty, fv, rec, datacons, dcons) where
+  , decfields, fieldty, fv, rec, datacons, dcons, match, case_) where
 
 import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
@@ -27,7 +27,7 @@ data KnownMods = NatMod | ListMod | VecMod | StringMod
 newtype Import = ImportLib KnownMods
 
 data Definition
-  = DefPatt Name Tm Name [([Arg Name Tm], Tm)]
+  = DefPatt Name Tm Name Patterns
     -- ^ Function definition by pattern-matching.
     -- Function name; signature; (Rocq only: Name for Match); constructors
   | DefTVar Name Tm Tm
@@ -82,6 +82,9 @@ newtype FieldDef  = FieldDef  [FieldV]       -- a record value
 
 newtype DataCons = DataCons [Constr]
 data Constr = Constr {cname :: Name, cty :: Tm}
+
+newtype Patterns = Patterns [Pat]
+data Pat = Pat {args :: [Arg Name Tm], argsty :: Tm}
 
 data Literal
   = Nat Natural
@@ -168,3 +171,9 @@ datacons = DataCons
 
 dcons :: Name -> Tm -> Constr
 dcons = Constr
+
+match :: [Pat] -> Patterns
+match = Patterns
+
+case_ :: [Arg Name Tm] -> Tm -> Pat
+case_ = Pat
