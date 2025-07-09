@@ -3,7 +3,7 @@ module Grammar (Module (..), Import (..), Definition (..), Tm (..), Arg (..)
   , FieldDecl (..), FieldT (..), FieldV (..), FieldDef (..), KnownT (..)
   , Name
   , modname
-  , nat, con, num, bool, list, vec, vecT, string, suc, plus, app1, appnm
+  , nat, con, num, bool, list, vec, vecT, string, stringT, suc, plus, app1, appnm
   , decfields, fieldty, fv, rec) where
 
 import Data.List.NonEmpty (NonEmpty)
@@ -66,7 +66,7 @@ data Tm
   -- | Record (Maybe Name) [FieldV]       -- a record value
   -- | Lam                  -- we don't as-yet use it?
 
-data KnownT = VecT -- Vector type
+data KnownT = NatT | VecT | StringT
 
 data Arg a b = Arg { arg :: a, argty :: b }
 
@@ -109,7 +109,7 @@ type Parameters = [Arg Name Tm]
 -- useful short-hands for things that are used often
 
 nat :: Tm
-nat = PCon "Nat" []
+nat = KCon NatT []
 
 con :: Name -> Tm
 con n = PCon n []
@@ -131,6 +131,9 @@ vecT t n = KCon VecT [t, n]
 
 string :: String -> Tm
 string = Lit . String
+
+stringT :: Tm
+stringT = KCon StringT []
 
 suc :: Tm -> Tm
 suc = Unary Suc

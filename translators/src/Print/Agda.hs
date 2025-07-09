@@ -74,6 +74,8 @@ printTm (Where expr ds) =
 printTm (App fun args) = printTm fun <+> softline' <> (sep $ map printTm args)
 printTm (Unary o t) = parens $ printOp1 o <+> printTm t
 printTm (Lit l) = printLit l
+printTm (KCon NatT _) = "Nat"
+printTm (KCon StringT _) = "String"
 printTm (KCon VecT l) = "Vec" <+> hsep (map printTm l)
 
 printOp1 :: Op1 -> Doc ann

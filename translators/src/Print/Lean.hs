@@ -76,13 +76,16 @@ printTm (Where expr ds) = printTm expr <> hardline <>
 printTm (App fun args) = printTm fun <+> fillSep (map (group . printTm) args)
 printTm (Unary o t) = parens $ printOp1 o <+> printTm t
 printTm (Lit l) = printLit l
+printTm (KCon NatT _) = "Nat"
+printTm (KCon StringT _) = "String"
 printTm (KCon VecT l) = "Vector" <+> hsep (map printTm l)
 
 
 printReturnType :: Tm -> Doc ann
 printReturnType (PCon t []) = pretty t
 printReturnType (Arr _ t) = printReturnType t
-printReturnType _ = error "show not occur as a return type"
+printReturnType t@(KCon _ _) = printTm t
+printReturnType _ = error "should not occur as a return type"
 
 printArg :: Pretty a => Arg a Tm -> Doc ann
 printArg a = teleCell (pretty $ arg a) (printTm $ argty a)

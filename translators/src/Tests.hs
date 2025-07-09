@@ -112,15 +112,15 @@ _tests =
     \n -> let
         -- Generate Record Definitions
         genRecords :: Natural -> [Definition]
-        genRecords p = foldr (\ (i,c) b -> DefRecType (mkName "Record" i) [] (mkName "Const" i)
+        genRecords p = foldr (\ (i,c) b -> DefRecType (mkName "Dummy" i) [] (mkName "Const" i)
           (decfields [fieldty (nm 'f' i) c]) Univ : b)
-          [] $ ((1, nat) : map (\i -> (i, con (mkName "Record" (i-1)))) [2..p])
+          [] $ ((1, nat) : map (\i -> (i, con (mkName "Dummy" (i-1)))) [2..p])
 
         -- Generate Example Init
         genExample :: Natural -> Tm
         genExample p = foldr (\a b -> Paren $ (app1 (mkName "Const" a) b)) (num 10) $ reverse [1..p]
 
-        exampleInit = DefRec "example" (con $ mkName "Record" n) (mkName "Const" n) $
+        exampleInit = DefRec "example" (con $ mkName "Dummy" n) (mkName "Const" n) $
           rec [fv "example" (genExample $ minusNatural n 1)] -- HACK
         decl = (genRecords n ++ [exampleInit])
 
@@ -161,11 +161,11 @@ _tests =
     in Module "Fields_NonDependentRecordModule" [ImportLib NatMod] $ trivial n [xDef,exampleInit]
 
     , \n -> let -- 11 Description: Generate a very long chain (N) of independent record definitions
-        exampleInit = DefRec "example" (con $ mkName "Record" n) (mkName "Const" n) 
+        exampleInit = DefRec "example" (con $ mkName "Dummy" n) (mkName "Const" n) 
           $ rec [fv "f1" (num 1)]
         -- Generate Record Definitions
         genRecords :: Natural -> [Definition]
-        genRecords p = foldl (\b a -> DefRecType (mkName "Record" a) [] (mkName "Const" a) 
+        genRecords p = foldl (\b a -> DefRecType (mkName "Dummy" a) [] (mkName "Const" a) 
                              (decfields [fieldty (nm 'f' a) nat]) Univ : b)
                              [exampleInit] $ reverse [1..p]
     in Module "ChainDefFields_NonDependentRecordModule" [ImportLib NatMod] $ trivial n (genRecords n)
@@ -215,7 +215,7 @@ _tests =
        in Module "DataImplicitIndices" [ImportLib NatMod] $ trivial n decl
 
     , \n -> let -- 17 Description: A file consisting of a single long line (length specified by the user).
-        decl = [DefTVar "A" (con "String") $ string $ replicate (fromIntegral n) 'x']
+        decl = [DefTVar "A" stringT $ string $ replicate (fromIntegral n) 'x']
         in Module "SingleLongLine" [ImportLib StringMod]  $ trivial n decl
 
     , \n ->  --18 Description: A single datatype where 'n' represents the number of 'Type' parameters, all needed for 'n' constructors

@@ -53,11 +53,10 @@ printTm :: Tm -> Doc ann
 printTm (Univ) = univ
 printTm (Pi lt t) = foldr (\a d -> printArgL a <+> arr <+> d) (printTm t) lt
 printTm (Arr t1 t2) = printTm t1 <+> arr <+> printTm t2
-printTm (PCon t []) = pretty $ if  "Cap_" `T.isPrefixOf` t || "Record" `T.isPrefixOf` t
-                             then t else (T.toLower t) -- if starts with keyword Cap_ maintain, else lower case
-printTm (PCon name types) = pretty (T.toLower name) <+> hsep (map printTm types)
+printTm (PCon t []) = pretty t
+printTm (PCon name types) = pretty name <+> hsep (map printTm types)
 printTm (DCon name types) = pretty name <+> hsep (map printTm types)
-printTm (Index names ty) = "forall" <+> braces (typeAnn (pretty $ T.toLower (T.unwords names)) (printTm ty))
+printTm (Index names ty) = "forall" <+> braces (typeAnn (pretty $ T.unwords names) (printTm ty))
 printTm (Var var) = pretty var
 printTm (Paren e) = parens $ printTm e
 printTm (Binary op e1 e2) = printTm e1 <+> printOp2 op <+> printTm e2
@@ -71,11 +70,14 @@ printTm (Where expr ds) =
 printTm (App fun args) = printTm fun <+> (hsep $ map printTm args)
 printTm (Unary o e) = parens $ printOp1 o <+> printTm e
 printTm (Lit l) = printLit l
+printTm (KCon NatT _) = "nat"
+printTm (KCon StringT _) = "string"
 printTm (KCon VecT l) = "Vect" <+> hsep (map printTm l)
 
 printReturnType :: Tm -> Doc ann
-printReturnType (PCon t []) = pretty $ T.toLower t --required for nested functions
+printReturnType (PCon t []) = pretty t -- $ T.toLower t --required for nested functions
 printReturnType (Arr _ t) = printReturnType t
+printReturnType t@(KCon _ _) = printTm t
 printReturnType _ = error "should not occur as a return type"
 
 printArg :: Pretty a => Arg a Tm -> Doc ann
@@ -123,19 +125,19 @@ printDef (DefTVar var t expr) =
 printDef (DefPatt var ty m cons) = "Fixpoint" <+> pretty var <+> printTele ty
           <+> assign <> hardline <>
   "match" <+> pretty m <+> "with" <> hardline <>
-  vsep (map (\(a, e) -> pipe <+> (hsep $ map (pretty . T.toLower . arg) a) <+> "=>" <+> printTm e) cons)
+  vsep (map (\(a, e) -> pipe <+> (hsep $ map (pretty . arg) a) <+> "=>" <+> printTm e) cons)
   <> softline' <+> "end" <> dot <> hardline
 printDef (DefPDataType name params args ty) =
   "Inductive" <+> printParams params <+> assign <> hardline <>
-  vsep (map (\(x, y) -> pipe <+> typeAnn (pretty $ T.toLower x) (printIndices y)) args) <> dot
+  vsep (map (\(x, y) -> pipe <+> typeAnn (pretty x) (printIndices y)) args) <> dot
   where
     printIndices :: Tm -> Doc ann
     printIndices (Arr (Index n t) ctype) = (printTm (Index n t)) <> comma <+> (printTm ctype)
     printIndices t = printTm t
 
-    printParams [] = typeAnn (pretty $ T.toLower name) (printTm ty)
-    printParams (_:_) =  (pretty $ T.toLower name) <+>
-      typeAnn (hsep (map ( \(Arg x y) -> teleCell (pretty $ T.toLower x) (printTm y)) params)) (printTm ty)
+    printParams [] = typeAnn (pretty name) (printTm ty)
+    printParams (_:_) =  (pretty name) <+>
+      typeAnn (hsep (map ( \(Arg x y) -> teleCell (pretty x) (printTm y)) params)) (printTm ty)
 
 --Function for Records
 printDef (DefRecType name params consName fields _) = 
