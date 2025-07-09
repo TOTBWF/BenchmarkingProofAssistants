@@ -194,4 +194,4 @@ render :: Module -> T.Text
 render = renderStrict . layoutPretty defaultLayoutOptions . get . printModule
 
 runRocq :: Module -> IO()
-runRocq m = T.writeFile (T.unpack $ "out/" `T.append` modname m `T.append` ".v") $ render m
+runRocq m = T.writeFile (T.unpack $ "out/" `T.append` mname m `T.append` ".v") $ render m

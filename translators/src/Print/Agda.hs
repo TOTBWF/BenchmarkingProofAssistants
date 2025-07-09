@@ -173,4 +173,4 @@ render :: Module -> T.Text
 render = renderStrict . layoutPretty defaultLayoutOptions . get . printModule
 
 runAgda :: Module -> IO()
-runAgda m = T.writeFile ("out/" ++ (T.unpack $ modname m) ++ ".agda") $ render m
+runAgda m = T.writeFile ("out/" ++ (T.unpack $ mname m) ++ ".agda") $ render m

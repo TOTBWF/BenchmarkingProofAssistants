@@ -179,4 +179,4 @@ render :: Module -> T.Text
 render = renderStrict . layoutPretty defaultLayoutOptions . get . printModule
 
 runLean :: Module -> IO()
-runLean m = T.writeFile ("out/" ++ (T.unpack $ modname m) ++ ".lean") $ render m
+runLean m = T.writeFile ("out/" ++ (T.unpack $ mname m) ++ ".lean") $ render m

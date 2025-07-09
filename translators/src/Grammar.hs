@@ -3,7 +3,6 @@ module Grammar (Module (..), Import (..), Definition (..), Tm (..), Arg (..)
   , FieldDecl (..), FieldT (..), FieldV (..), FieldDef (..), KnownT (..)
   , DataCons (..), Constr (..), Parameters, Patterns (..), Pat (..)
   , Name
-  , modname
   , nat, con, num, bool, list, vec, vecT, string, stringT, suc, plus, app1, appnm
   , decfields, fieldty, fv, rec, datacons, dcons, match, case_) where
 
@@ -18,9 +17,6 @@ data Module = Module
   , mimports :: [Import]
   , mdefs :: [Definition]
   }
-
-modname :: Module -> Name
-modname m = mname m
 
 data KnownMods = NatMod | ListMod | VecMod | StringMod
 

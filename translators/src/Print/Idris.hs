@@ -175,4 +175,4 @@ render :: Module -> T.Text
 render = renderStrict . layoutPretty defaultLayoutOptions . get . printModule
 
 runIdris :: Module -> IO()
-runIdris m = T.writeFile ("out/" ++ (T.unpack $ modname m) ++ ".idr") $ render m
+runIdris m = T.writeFile ("out/" ++ (T.unpack $ mname m) ++ ".idr") $ render m
