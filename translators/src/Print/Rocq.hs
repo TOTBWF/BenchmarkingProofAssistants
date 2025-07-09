@@ -111,6 +111,17 @@ printFieldT (FieldT fname ftype) = typeAnn (pretty fname) (printTm ftype) <> sem
 printFieldDecl :: FieldDecl -> Doc ann
 printFieldDecl (FieldDecl fields) = vsep $ map printFieldT fields
 
+-- Hack: printing implicits using a comma
+printIndices :: Tm -> Doc ann
+printIndices (Arr (Index n t) ctype) = (printTm (Index n t)) <> comma <+> (printTm ctype)
+printIndices t = printTm t
+
+printConstr :: Constr -> Doc ann
+printConstr (Constr nm ty) = pipe <+> typeAnn (pretty nm) (printIndices ty)
+
+printDataCons :: DataCons -> Doc ann
+printDataCons (DataCons l) = vsep $ map printConstr l
+
 printLocalDefn :: LocalDefn -> Doc ann
 printLocalDefn (LocDefFun var Nothing args expr) =
   prettyArgs var printArg args <+> assign <+> printTm expr
@@ -127,14 +138,9 @@ printDef (DefPatt var ty m cons) = "Fixpoint" <+> pretty var <+> printTele ty
   "match" <+> pretty m <+> "with" <> hardline <>
   vsep (map (\(a, e) -> pipe <+> (hsep $ map (pretty . arg) a) <+> "=>" <+> printTm e) cons)
   <> softline' <+> "end" <> dot <> hardline
-printDef (DefPDataType name params args ty) =
-  "Inductive" <+> printParams params <+> assign <> hardline <>
-  vsep (map (\(x, y) -> pipe <+> typeAnn (pretty x) (printIndices y)) args) <> dot
+printDef (DefPDataType name params constr ty) =
+  "Inductive" <+> printParams params <+> assign <> hardline <> printDataCons constr <> dot
   where
-    printIndices :: Tm -> Doc ann
-    printIndices (Arr (Index n t) ctype) = (printTm (Index n t)) <> comma <+> (printTm ctype)
-    printIndices t = printTm t
-
     printParams [] = typeAnn (pretty name) (printTm ty)
     printParams (_:_) =  (pretty name) <+>
       typeAnn (hsep (map ( \(Arg x y) -> teleCell (pretty x) (printTm y)) params)) (printTm ty)

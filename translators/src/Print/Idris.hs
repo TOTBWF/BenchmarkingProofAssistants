@@ -98,6 +98,16 @@ printFieldT (FieldT fname ftype) = typeAnn (pretty fname) (printTm ftype)
 printFieldDecl :: FieldDecl -> Doc ann
 printFieldDecl (FieldDecl fields) = vsep $ map printFieldT fields
 
+printDataConst :: Parameters -> DataCons -> Doc ann
+printDataConst p (DataCons l) = vsep $ map (prettyCon p) l
+
+prettyCon :: Parameters -> Constr -> Doc ann
+prettyCon [] (Constr n t) = typeAnn (pretty n) (printTm t)
+prettyCon p  (Constr n t) = typeAnn (pretty n) 
+                                    (encloseSep emptyDoc (space <> arr) (space <> arr <> space) 
+                                       (map (pretty.arg) p))
+                            <+> printTm t
+
 printLocalDefn :: LocalDefn -> Doc ann
 printLocalDefn (LocDefFun var ty args expr) = 
   typeSig <> tvar <+> assign <+> align (printTm expr)
@@ -119,19 +129,13 @@ printDef (DefPatt var ty _ cons) =
     vsep (map (\(a, e) -> (pretty var) <+> hsep (map (pretty . arg) a) <+> assign <+> printTm e) cons)
 printDef (DefPDataType name params cons ty) =
   data_ <+> 
-    prettyParams params <+> "where" <> hardline <> indent 1 (vsep (map (prettyCon params) cons)) <> hardline
+    prettyParams params <+> "where" <> hardline <> indent 1 (printDataConst params cons) <> hardline
     where
       -- FIXME: do we really need this many arrows in the definitions?
       prettyParams [] = typeAnn (pretty name) (printTm ty)
       prettyParams p = typeAnn (pretty name) (concatWith (\x y -> x <+> arr <+> y) $
                                 map (\(Arg x y) -> teleCell (pretty x) (printTm y)) p)
                            <+> arr <+> printTm ty
-
-      prettyCon [] (n, t) = typeAnn (pretty n) (printTm t)
-      prettyCon p  (n, t) = typeAnn (pretty n) 
-                                 (encloseSep emptyDoc (space <> arr) (space <> arr <> space) 
-                                      (map (pretty.arg) p)) <+> 
-                         printTm t
 
 printDef (DefRecType name params consName fields _) =
     recrd <+> pp_params <+> "where" <> hardline <>

@@ -90,6 +90,12 @@ printFieldT (FieldT fname ftype) = typeAnn (pretty fname) (printTm ftype)
 printFieldDecl :: FieldDecl -> Doc ann
 printFieldDecl (FieldDecl fields) = vsep $ map printFieldT fields
 
+printConstr :: Constr -> Doc ann
+printConstr (Constr nm ty) = typeAnn (pretty nm) (printTm ty)
+
+printDataConst :: DataCons -> Doc aa
+printDataConst (DataCons l) = vsep $ map printConstr l
+
 printLit :: Literal -> Doc ann
 printLit (Nat n) = pretty n
 printLit (Bool b) = pretty b
@@ -122,8 +128,7 @@ printDef (DefPatt var ty _ cons) =
 -- Function to print datatype definitions
 printDef (DefPDataType name params cons ty) =
   data_ <+> typeAnn (pParams params) (printTm ty) <+> "where" <> hardline <>
-    indent 1 (vsep (map (\(n,t) -> typeAnn (pretty n) (printTm t)) cons)) <>
-    hardline
+    indent 1 (printDataConst cons) <> hardline
     where
       pParams [] = pretty name
       pParams _  = pretty name <+> hsep (map (\(Arg x y) -> teleCell (pretty x) (printTm y)) params)

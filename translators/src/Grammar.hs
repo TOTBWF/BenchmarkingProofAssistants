@@ -1,10 +1,11 @@
 module Grammar (Module (..), Import (..), Definition (..), Tm (..), Arg (..)
   , KnownMods (..), Op1 (..), Op2 (..), LocalDefn (..), Literal (..)
   , FieldDecl (..), FieldT (..), FieldV (..), FieldDef (..), KnownT (..)
+  , DataCons (..), Constr (..), Parameters
   , Name
   , modname
   , nat, con, num, bool, list, vec, vecT, string, stringT, suc, plus, app1, appnm
-  , decfields, fieldty, fv, rec) where
+  , decfields, fieldty, fv, rec, datacons, dcons) where
 
 import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
@@ -31,7 +32,7 @@ data Definition
     -- Function name; signature; (Rocq only: Name for Match); constructors
   | DefTVar Name Tm Tm
     -- ^ Define a (top-level) variable with a type annotation, and a definiens
-  | DefPDataType Name Parameters [(Name,Tm)] Tm
+  | DefPDataType Name Parameters DataCons Tm
     -- ^ Datatype name, parameters, constructors, overall type
   | DefRecType Name Parameters Name FieldDecl Tm
     -- ^ [Arg] for parameters (empty list if no params), Name is the type constructor
@@ -78,6 +79,9 @@ data FieldV = FieldV { flabel :: Name, fval :: Tm }
 
 newtype FieldDecl = FieldDecl [FieldT]
 newtype FieldDef  = FieldDef  [FieldV]       -- a record value
+
+newtype DataCons = DataCons [Constr]
+data Constr = Constr {cname :: Name, cty :: Tm}
 
 data Literal
   = Nat Natural
@@ -158,3 +162,9 @@ decfields = FieldDecl
 
 rec :: [FieldV] -> FieldDef
 rec = FieldDef
+
+datacons :: [Constr] -> DataCons
+datacons = DataCons
+
+dcons :: Name -> Tm -> Constr
+dcons = Constr
