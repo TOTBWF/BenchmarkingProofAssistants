@@ -55,7 +55,6 @@ printTm (Pi lt t) = foldr (\a d -> printArgL a <+> arr <+> d) (printTm t) lt
 printTm (Arr t1 t2) = printTm t1 <+> arr <+> printTm t2
 printTm (PCon t []) = pretty $ if  "Cap_" `T.isPrefixOf` t || "Record" `T.isPrefixOf` t
                              then t else (T.toLower t) -- if starts with keyword Cap_ maintain, else lower case
-printTm (PCon "Vec" args) = "Vect" <+> hsep (map printTm args)
 printTm (PCon name types) = pretty (T.toLower name) <+> hsep (map printTm types)
 printTm (DCon name types) = pretty name <+> hsep (map printTm types)
 printTm (Index names ty) = "forall" <+> braces (typeAnn (pretty $ T.toLower (T.unwords names)) (printTm ty))
@@ -72,6 +71,7 @@ printTm (Where expr ds) =
 printTm (App fun args) = printTm fun <+> (hsep $ map printTm args)
 printTm (Unary o e) = parens $ printOp1 o <+> printTm e
 printTm (Lit l) = printLit l
+printTm (KCon VecT l) = "Vect" <+> hsep (map printTm l)
 
 printReturnType :: Tm -> Doc ann
 printReturnType (PCon t []) = pretty $ T.toLower t --required for nested functions

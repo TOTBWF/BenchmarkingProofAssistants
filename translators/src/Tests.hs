@@ -90,7 +90,7 @@ _tests =
         -- Generate field definitions dynamically
         genFields :: Natural -> FieldDecl
         genFields p = decfields $ fieldty "f1"  nat :
-                      (foldr (\a b -> fieldty (nm 'f' a) (PCon "Vec" [nat, genSize (a-1)]) : b) [] $ [2..p])
+                      (foldr (\a b -> fieldty (nm 'f' a) (vecT nat (genSize (a-1))) : b) [] $ [2..p])
 
         -- Helper function to correctly reference `suc` or `S`
         genSize p = foldr (\_ b -> suc b) (Var "f1") [2..p]

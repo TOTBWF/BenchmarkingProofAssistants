@@ -1,9 +1,9 @@
 module Grammar (Module (..), Import (..), Definition (..), Tm (..), Arg (..)
   , KnownMods (..), Op1 (..), Op2 (..), LocalDefn (..), Literal (..)
-  , FieldDecl (..), FieldT (..), FieldV (..), FieldDef (..)
+  , FieldDecl (..), FieldT (..), FieldV (..), FieldDef (..), KnownT (..)
   , Name
   , modname
-  , nat, con, num, bool, list, vec, string, suc, plus, app1, appnm
+  , nat, con, num, bool, list, vec, vecT, string, suc, plus, app1, appnm
   , decfields, fieldty, fv, rec) where
 
 import Data.List.NonEmpty (NonEmpty)
@@ -49,6 +49,7 @@ data LocalDefn
 data Tm
   = PCon Name [Tm]        -- (parameterized) type constructor
   | DCon Name [Tm]        -- dependent type constructor (note that a dependent type is also parameterized)
+  | KCon KnownT [Tm]      -- built-in (like Vec)
   | Arr Tm Tm             -- (non-dependent) function type
   | Pi (NonEmpty (Arg [Name] Tm)) Tm -- Dependent function type
   | Index [Name] Tm
@@ -64,6 +65,8 @@ data Tm
   | Lit Literal
   -- | Record (Maybe Name) [FieldV]       -- a record value
   -- | Lam                  -- we don't as-yet use it?
+
+data KnownT = VecT -- Vector type
 
 data Arg a b = Arg { arg :: a, argty :: b }
 
@@ -122,6 +125,9 @@ list = Lit . List
 
 vec :: [ Tm ] -> Tm
 vec = Lit . Vec
+
+vecT :: Tm -> Tm -> Tm
+vecT t n = KCon VecT [t, n]
 
 string :: String -> Tm
 string = Lit . String

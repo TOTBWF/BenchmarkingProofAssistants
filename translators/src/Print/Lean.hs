@@ -55,7 +55,6 @@ printTm (Univ) = univ
 printTm (Pi lt t) = foldr (\a d -> printArgL a <+> arr <+> d) (printTm t) lt
 printTm (Arr t1 t2) = printTm t1 <+> arr <+> printTm t2
 printTm (PCon t []) = pretty t
-printTm (PCon "Vec" args) = "Vector" <+> hsep (map printTm args)
 printTm (PCon name types) = pretty name <+> hsep (map printTm types)
 printTm (DCon t []) = pretty t
 printTm (DCon name types) = pretty name <+> hsep (map printTm types)
@@ -77,6 +76,7 @@ printTm (Where expr ds) = printTm expr <> hardline <>
 printTm (App fun args) = printTm fun <+> fillSep (map (group . printTm) args)
 printTm (Unary o t) = parens $ printOp1 o <+> printTm t
 printTm (Lit l) = printLit l
+printTm (KCon VecT l) = "Vector" <+> hsep (map printTm l)
 
 
 printReturnType :: Tm -> Doc ann

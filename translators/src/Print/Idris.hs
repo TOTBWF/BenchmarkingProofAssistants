@@ -56,7 +56,6 @@ printTm (Univ) = univ
 printTm (Arr t1 t2) = printTm t1 <+> arr <+> printTm t2
 printTm (Pi lt t) = foldr (\a d -> printArgL a <+> arr <+> d) (printTm t) lt
 printTm (PCon t []) = pretty t
-printTm (PCon "Vec" [PCon baseType [], size]) = "Vect" <+> printTm size <+> pretty baseType
 printTm (PCon name types) = pretty name <+> hsep (map printTm types)
 printTm (DCon t []) = pretty t
 printTm (DCon name types) = pretty name <+> hsep (map printTm types)
@@ -75,6 +74,8 @@ printTm (Where expr ds) =
 printTm (App fun args) = printTm fun <+> (fillSep (map (group . printTm) args))
 printTm (Unary o t) = parens $ printOp1 o <+> printTm t
 printTm (Lit l) = printLit l
+printTm (KCon VecT [s, t]) = "Vect" <+> printTm t <+> printTm s
+printTm (KCon VecT _) = error "Vect takes exactly two arguments"
 
 printLit :: Literal -> Doc ann
 printLit (Nat n) = pretty n
