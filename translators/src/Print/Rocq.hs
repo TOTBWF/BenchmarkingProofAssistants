@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Print.Rocq
   ( printModule
   , render
@@ -11,20 +12,9 @@ import Prettyprinter
 import Prettyprinter.Render.Text (renderStrict)
 
 import Grammar
-import Print.Generic (prettyArgs)
+import Print.Generic
 
 newtype Rocq ann = Rocq {get :: Doc ann}
-
--- to be migrated
-class Keywords rep where
-  import_ :: rep
-  assign  :: rep
-  recrd   :: rep
-  univ    :: rep
-  data_   :: rep
-  arr     :: rep
-  lcons   :: rep
-  vcons   :: rep
 
 instance Keywords (Doc ann) where
   import_ = "Require" <+> "Import"
@@ -35,11 +25,6 @@ instance Keywords (Doc ann) where
   arr     = "->"
   lcons   = comma
   vcons   = semi
-
-
-class TypeAnn rep where
-  typeAnn :: rep -> rep -> rep
-  teleCell :: Visibility -> rep -> rep -> rep
 
 instance TypeAnn (Doc ann) where
   typeAnn trm typ = trm <+> ":" <+> typ

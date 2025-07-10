@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Print.Idris
   ( printModule
   , render
@@ -10,20 +11,9 @@ import Prettyprinter
 import Prettyprinter.Render.Text (renderStrict)
 
 import Grammar
-import Print.Generic (blanklines)
+import Print.Generic
 
 newtype Idris ann = Idris {get :: Doc ann}
-
--- to be migrated
-class Keywords rep where
-  import_ :: rep
-  assign  :: rep
-  recrd   :: rep
-  univ    :: rep
-  data_   :: rep
-  arr     :: rep
-  lcons   :: rep
-  vcons   :: rep
 
 instance Keywords (Doc ann) where
   import_ = "import"
@@ -34,10 +24,6 @@ instance Keywords (Doc ann) where
   arr     = "->"
   lcons   = comma
   vcons   = comma
-
-class TypeAnn rep where
-  typeAnn :: rep -> rep -> rep
-  teleCell :: Visibility -> rep -> rep -> rep
 
 instance TypeAnn (Doc ann) where
   typeAnn trm typ = trm <+> ":" <+> typ

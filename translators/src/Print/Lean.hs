@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Print.Lean
   ( printModule
   , runLean
@@ -14,16 +15,6 @@ import Print.Generic
 
 newtype Lean ann = Lean {get :: Doc ann}
 
-class Keywords rep where
-  import_ :: rep
-  assign  :: rep
-  recrd   :: rep
-  univ    :: rep
-  data_   :: rep
-  arr     :: rep
-  lcons   :: rep
-  vcons   :: rep
-
 instance Keywords (Doc ann) where
   import_ = "import"
   assign  = ":="
@@ -33,10 +24,6 @@ instance Keywords (Doc ann) where
   arr     = "->"
   lcons   = comma
   vcons   = comma
-
-class TypeAnn rep where
-  typeAnn :: rep -> rep -> rep
-  teleCell :: Visibility -> rep -> rep -> rep
 
 instance TypeAnn (Doc ann) where
   typeAnn trm typ = trm <+> ":" <+> typ
