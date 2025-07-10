@@ -18,10 +18,12 @@ newtype Idris ann = Idris {get :: Doc ann}
 class Keywords rep where
   import_ :: rep
   assign  :: rep
-  data_   :: rep
   recrd   :: rep
   univ    :: rep
+  data_   :: rep
   arr     :: rep
+  lcons   :: rep
+  vcons   :: rep
 
 instance Keywords (Doc ann) where
   import_ = "import"
@@ -30,6 +32,8 @@ instance Keywords (Doc ann) where
   recrd   = "record"
   univ    = "Type"
   arr     = "->"
+  lcons   = comma
+  vcons   = comma
 
 class TypeAnn rep where
   typeAnn :: rep -> rep -> rep
@@ -50,7 +54,7 @@ printWithImport (ImportLib ListMod) m = m
 
 printArgL :: Arg [ Name ] Tm -> Doc ann
 printArgL (Arg [] t _) = printTm t
-printArgL (Arg l@(_:_) t v) = teleCell v (hsep $ punctuate comma $ map pretty l) (printTm t) 
+printArgL (Arg l@(_:_) t v) = teleCell v (hsep $ punctuate comma $ map pretty l) (printTm t)
 
 printTm :: Tm -> Doc ann
 printTm (Univ) = univ
@@ -60,11 +64,10 @@ printTm (PCon t []) = pretty t
 printTm (PCon name types) = pretty name <+> hsep (map printTm types)
 printTm (DCon t []) = pretty t
 printTm (DCon name types) = pretty name <+> hsep (map printTm types)
--- printTm (Index names ty) = braces $ typeAnn (hsep $ punctuate comma $ map pretty names) (printTm ty)
 printTm (Var var) = pretty var
 printTm (Paren e) = parens $ printTm e
 printTm (Binary op e1 e2) = printTm e1 <+> printOp2 op <+> printTm e2
-printTm (Let ds expr) = 
+printTm (Let ds expr) =
   "let" <+> align (vcat (map printLocalDefn ds) <+> "in") <> line <>
   printTm expr
 printTm (If cond thn els) =
@@ -84,8 +87,8 @@ printLit :: Literal -> Doc ann
 printLit (Nat n) = pretty n
 printLit (Bool b) = pretty b
 printLit (String str) = dquotes $ pretty str
-printLit (Vec l) =  brackets $ fillSep $ punctuate comma $ map printTm l
-printLit (List l) = brackets $ fillSep $ punctuate comma $ map printTm l
+printLit (Vec l) =  brackets $ fillSep $ punctuate vcons $ map printTm l
+printLit (List l) = brackets $ fillSep $ punctuate lcons $ map printTm l
 
 printOp1 :: Op1 -> Doc ann
 printOp1 Suc = "S"
@@ -104,8 +107,8 @@ printDataConst p (DataCons l) = vsep $ map (prettyCon p) l
 
 prettyCon :: Parameters -> Constr -> Doc ann
 prettyCon [] (Constr n t) = typeAnn (pretty n) (printTm t)
-prettyCon p  (Constr n t) = typeAnn (pretty n) 
-                                    (encloseSep emptyDoc (space <> arr) (space <> arr <> space) 
+prettyCon p  (Constr n t) = typeAnn (pretty n)
+                                    (encloseSep emptyDoc (space <> arr) (space <> arr <> space)
                                        (map (pretty.arg) p))
                             <+> printTm t
 
@@ -116,7 +119,7 @@ printMatch :: Name -> Patterns -> Doc ann
 printMatch nm (Patterns p) = vsep (map (printCase nm) p)
 
 printLocalDefn :: LocalDefn -> Doc ann
-printLocalDefn (LocDefFun var ty args expr) = 
+printLocalDefn (LocDefFun var ty args expr) =
   typeSig <> tvar <+> assign <+> align (printTm expr)
     where
         typeSig = case ty of
@@ -127,13 +130,13 @@ printLocalDefn (LocDefFun var ty args expr) =
             (_:_) -> pretty var <+> (hsep $ map (pretty . arg) args)
 
 printDef :: Definition -> Doc ann
-printDef (DefTVar var t expr) = 
+printDef (DefTVar var t expr) =
   typeAnn (pretty var) (printTm t) <> hardline <>
   pretty var <+> assign <+> align (printTm expr) <> hardline
 
 printDef (DefPatt var ty _ cons) = typeAnn (pretty var) (printTm ty) <> line <> printMatch var cons
 printDef (DefPDataType name params cons ty) =
-  data_ <+> 
+  data_ <+>
     prettyParams params <+> "where" <> hardline <> indent 1 (printDataConst params cons) <> hardline
     where
       prettyParams [] = typeAnn (pretty name) (printTm ty)
@@ -150,13 +153,13 @@ printDef (DefRecType name params consName fields _) =
       pp_params = if null params then pretty name else pretty name <+> hsep ll
 
 printDef (DefRec name recType consName (FieldDef fields)) =
-    typeAnn (pretty name) (printTm recType) <> hardline <> 
+    typeAnn (pretty name) (printTm recType) <> hardline <>
     pretty name <+> assign <+> pretty consName <+> nest 4 (sep (map (printTm . fval) fields)) <>
     hardline
 
 printDef (OpenName _) = emptyDoc
 printDef (Separator '\n' n _) = blanklines n
-printDef (Separator c n b) = 
+printDef (Separator c n b) =
   let s = hcat $ replicate (fromIntegral n) (pretty c) in
   if b then hardline <> s <> hardline else s
 

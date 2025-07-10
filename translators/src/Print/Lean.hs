@@ -17,21 +17,22 @@ newtype Lean ann = Lean {get :: Doc ann}
 class Keywords rep where
   import_ :: rep
   assign  :: rep
-  arr     :: rep
+  recrd   :: rep
   univ    :: rep
-{-
   data_   :: rep
-  rec     :: rep
--}
+  arr     :: rep
+  lcons   :: rep
+  vcons   :: rep
+
 instance Keywords (Doc ann) where
   import_ = "import"
   assign  = ":="
-  arr     = "->"
+  recrd   = "structure"
   univ    = "Type"
-{-
-  data_   = "data"
-  rec     = "record"
--}
+  data_   = "inductive"
+  arr     = "->"
+  lcons   = comma
+  vcons   = comma
 
 class TypeAnn rep where
   typeAnn :: rep -> rep -> rep
@@ -91,14 +92,14 @@ printArg a = parens $ typeAnn (pretty $ arg a) (printTm $ argty a)
 
 printArgL :: Arg [ Name ] Tm -> Doc ann
 printArgL (Arg [] t _) = printTm t
-printArgL (Arg l@(_:_) t v) = teleCell v (hsep $ map pretty l) (printTm t) 
+printArgL (Arg l@(_:_) t v) = teleCell v (hsep $ map pretty l) (printTm t)
 
 printLit :: Literal -> Doc ann
 printLit (Nat n) = pretty n
 printLit (Bool b) = pretty b
 printLit (String str) = dquotes $ pretty str
-printLit (Vec l) = "#" <> brackets (hsep $ punctuate comma (map printTm l))
-printLit (List l) = brackets $ hsep $ punctuate comma (map printTm l)
+printLit (Vec l) = "#" <> brackets (hsep $ punctuate vcons (map printTm l))
+printLit (List l) = brackets $ hsep $ punctuate lcons (map printTm l)
 
 printOp1 :: Op1 -> Doc ann
 printOp1 Suc = "Nat.succ"  -- use `Nat.succ` explicitly
@@ -135,7 +136,7 @@ printDef _ (DefTVar var t expr) = "def" <+> typeAnn (pretty var) (printTm t) <+>
   assign <+> printTm expr
 printDef _ (DefPatt var ty _ cons) = "def" <+> typeAnn (pretty var) (printTm ty) <> hardline <> printMatch cons
 printDef _ (DefPDataType name params constr t) =
-  "inductive" <+>
+  data_ <+>
       typeAnn (pParams params) (printTm t) <+> "where" <> hardline <> printDataConst constr
   where
     pParams [] = pretty name
@@ -143,7 +144,7 @@ printDef _ (DefPDataType name params constr t) =
 
 -- records Def
 printDef _ (DefRecType name params consName fields _) =
-    "structure" <+> prettyParams <+> "where" <> hardline <>
+    recrd <+> prettyParams <+> "where" <> hardline <>
     indent 4 (pretty consName <+> "::" <> hardline <> printFieldDecl fields) <> hardline
       where
         prettyParams = case params of

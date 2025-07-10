@@ -22,6 +22,7 @@ class Keywords rep where
   data_   :: rep
   arr     :: rep
   lcons   :: rep
+  vcons   :: rep
 
 instance Keywords (Doc ann) where
   import_ = "open" <+> "import"
@@ -31,6 +32,7 @@ instance Keywords (Doc ann) where
   data_   = "data"
   arr     = "->"
   lcons   = "\x2237" 
+  vcons   = "\x2237" 
 
 class TypeAnn rep where
   typeAnn :: rep -> rep -> rep
@@ -107,8 +109,8 @@ printLit :: Literal -> Doc ann
 printLit (Nat n) = pretty n
 printLit (Bool b) = pretty b
 printLit (String str) = dquotes $ pretty str
-printLit (Vec l) = parens $ encloseSep emptyDoc (space <> lcons <+> lbracket <> rbracket)
-  (space <> lcons <> space) (map printTm l)
+printLit (Vec l) = parens $ encloseSep emptyDoc (space <> vcons <+> lbracket <> rbracket)
+  (space <> vcons <> space) (map printTm l)
 printLit (List l) = parens $ encloseSep emptyDoc (space <> lcons <+> lbracket <> rbracket)
   (space <> lcons <> space) (map printTm l)
 

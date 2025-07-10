@@ -19,16 +19,22 @@ newtype Rocq ann = Rocq {get :: Doc ann}
 class Keywords rep where
   import_ :: rep
   assign  :: rep
-  univ    :: rep
   recrd   :: rep
+  univ    :: rep
+  data_   :: rep
   arr     :: rep
+  lcons   :: rep
+  vcons   :: rep
 
 instance Keywords (Doc ann) where
   import_ = "Require" <+> "Import"
   assign  = ":="
   recrd   = "Record"
   univ    = "Type"
+  data_   = "Inductive"
   arr     = "->"
+  lcons   = comma
+  vcons   = semi
 
 
 class TypeAnn rep where
@@ -85,7 +91,7 @@ printArg a = parens $ typeAnn (pretty $ arg a) (printTm $ argty a)
 
 printArgL :: Arg [ Name ] Tm -> Doc ann
 printArgL (Arg [] t _) = printTm t
-printArgL (Arg (x:xs) t v) = teleCell v (foldr (\ nm d -> pretty nm <+> d) (pretty x) xs)  (printTm t) 
+printArgL (Arg (x:xs) t v) = teleCell v (foldr (\ nm d -> pretty nm <+> d) (pretty x) xs)  (printTm t)
 
 -- this is partial on purpose
 printTele :: Tm -> Doc ann
@@ -96,8 +102,8 @@ printLit :: Literal -> Doc ann
 printLit (Nat n) = pretty n
 printLit (Bool b) = pretty b
 printLit (String str) = dquotes $ pretty str
-printLit (Vec l) = encloseSep lbracket rbracket (semi <> space) (map printTm l)
-printLit (List l) = encloseSep lbracket rbracket (comma <> space) (map printTm l)
+printLit (Vec l) = encloseSep lbracket rbracket (vcons <> space) (map printTm l)
+printLit (List l) = encloseSep lbracket rbracket (lcons <> space) (map printTm l)
 
 printOp1 :: Op1 -> Doc ann
 printOp1 Suc = "S"
@@ -113,7 +119,7 @@ printFieldDecl (FieldDecl fields) = vsep $ map printFieldT fields
 
 -- Hack: printing implicits using a comma
 printIndices :: Tm -> Doc ann
-printIndices (Arr (Arg n t Implicit) ctype) = 
+printIndices (Arr (Arg n t Implicit) ctype) =
   "forall" <+> braces (typeAnn (pretty $ T.unwords n) (printTm t))
   <> comma <+> (printTm ctype)
 printIndices t = printTm t
@@ -147,14 +153,14 @@ printDef (DefPatt var ty m cons) = "Fixpoint" <+> pretty var <+> printTele ty
   printMatch cons <> softline' <+> "end" <> dot <> hardline
 
 printDef (DefPDataType name params constr ty) =
-  "Inductive" <+> printParams params <+> assign <> hardline <> printDataCons constr <> dot
+  data_ <+> printParams params <+> assign <> hardline <> printDataCons constr <> dot
   where
     printParams [] = typeAnn (pretty name) (printTm ty)
     printParams (_:_) =  (pretty name) <+>
       typeAnn (hsep (map ( \(Arg x y v) -> teleCell v (pretty x) (printTm y)) params)) (printTm ty)
 
 --Function for Records
-printDef (DefRecType name params consName fields _) = 
+printDef (DefRecType name params consName fields _) =
     recrd <+> typeAnn recName univ <+> assign <+> pretty consName <+>
     lbrace <> hardline <> indent 2 (printFieldDecl fields) <> hardline <> rbrace <> dot <> hardline
     where
