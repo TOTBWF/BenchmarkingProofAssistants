@@ -24,21 +24,18 @@ instance Keywords (Doc ann) where
   arr     = "->"
   lcons   = "\x2237" 
   vcons   = "\x2237" 
+  typesep = ":"
 
 instance TypeAnn (Doc ann) where
-  typeAnn trm typ = trm <+> ":" <+> typ
-  teleCell Explicit trm typ = parens $ trm <+> ":" <+> typ
-  teleCell Implicit trm typ = braces $ trm <+> ":" <+> typ
+  typeAnn trm typ = trm <+> typesep <+> typ
+  teleCell Explicit trm typ = parens $ trm <+> typesep <+> typ
+  teleCell Implicit trm typ = braces $ trm <+> typesep <+> typ
 
 printImport :: Import -> Doc ann
 printImport (ImportLib NatMod) = import_ <+> "Agda.Builtin.Nat"
 printImport (ImportLib VecMod) = import_ <+> "Data.Vec.Base"
 printImport (ImportLib ListMod) = import_ <+> "Agda.Builtin.List"
 printImport (ImportLib StringMod) = import_ <+> "Agda.Builtin.String"
-
-printArgL :: Arg [ Name ] Tm -> Doc ann
-printArgL (Arg [] t _) = printTm t
-printArgL (Arg l@(_:_) t v) = teleCell v (hsep $ map pretty l)  (printTm t) 
 
 -- Print Terms
 printTm :: Tm -> Doc ann
@@ -49,15 +46,12 @@ printTm (PCon t []) = pretty t
 printTm (PCon name types) = pretty name <+> hsep (map printTm types)
 printTm (DCon t []) = pretty t
 printTm (DCon name types) = pretty name <+> hsep (map printTm types)
--- printTm (Index names ty) = braces $ typeAnn (hsep $ map pretty names) (printTm ty)
 printTm (Var var) = pretty var
 printTm (Paren e) = parens $ printTm e
 printTm (Binary op e1 e2) = printTm e1 <+> printOp2 op <+> printTm e2
 printTm (Let ds expr) = 
   "let" <+> align (vcat (map printLocalDefn ds) <+> "in") <> line <>
   printTm expr
-printTm (If cond thn els) =
-  "if" <+> printTm cond <+> "then" <+> printTm thn <+> "else" <+> printTm els
 printTm (Where expr ds) =
   printTm expr <> line <>
   indent 4 ("where" <> vcat (map printLocalDefn ds))
@@ -67,6 +61,10 @@ printTm (Lit l) = printLit l
 printTm (KCon NatT _) = "Nat"
 printTm (KCon StringT _) = "String"
 printTm (KCon VecT l) = "Vec" <+> hsep (map printTm l)
+
+printArgL :: Arg [ Name ] Tm -> Doc ann
+printArgL (Arg [] t _) = printTm t
+printArgL (Arg l@(_:_) t v) = teleCell v (hsep $ map pretty l)  (printTm t) 
 
 printOp1 :: Op1 -> Doc ann
 printOp1 Suc = "suc"

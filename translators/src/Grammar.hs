@@ -56,7 +56,6 @@ data Tm
   | Binary Op2 Tm Tm      -- only for known, hard-coded binary operations
   | Unary Op1 Tm          -- only for known, hard-coded unary operations
   | Let [LocalDefn] Tm
-  | If Tm Tm Tm
   | Where Tm [LocalDefn]
   | App Tm [Tm]
   | Paren Tm

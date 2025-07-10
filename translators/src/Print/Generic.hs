@@ -23,10 +23,11 @@ class Keywords rep where
   arr     :: rep
   lcons   :: rep
   vcons   :: rep
+  typesep :: rep
 
 -- Generic printing patterns
 -- type annotations
-class TypeAnn rep where
+class Keywords rep => TypeAnn rep where
   typeAnn :: rep -> rep -> rep
   teleCell :: Visibility -> rep -> rep -> rep
 

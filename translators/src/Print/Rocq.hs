@@ -25,11 +25,12 @@ instance Keywords (Doc ann) where
   arr     = "->"
   lcons   = comma
   vcons   = semi
+  typesep = ":"
 
 instance TypeAnn (Doc ann) where
-  typeAnn trm typ = trm <+> ":" <+> typ
-  teleCell Explicit trm typ = parens $ trm <+> ":" <+> typ
-  teleCell Implicit trm typ = brackets $ trm <+> ":" <+> typ
+  typeAnn trm typ = trm <+> typesep <+> typ
+  teleCell Explicit trm typ = parens $ trm <+> typesep <+> typ
+  teleCell Implicit trm typ = brackets $ trm <+> typesep <+> typ
 
 
 -- FIXME: end '.' should not be hard-coded
@@ -54,7 +55,6 @@ printTm (Binary op e1 e2) = printTm e1 <+> printOp2 op <+> printTm e2
 printTm (Let ds expr) =
   "let" <+> align (vcat (map printLocalDefn ds) <+> "in") <> line <>
   printTm expr
-printTm (If cond thn els) = "if" <+> printTm cond <+> "then" <+> printTm thn <+> "else" <+> printTm els
 printTm (Where expr ds) =
   printTm expr <> hardline <>
   indent 4 ("where " <+> vcat (map printLocalDefn ds))
@@ -80,7 +80,7 @@ printArgL (Arg (x:xs) t v) = teleCell v (foldr (\ nm d -> pretty nm <+> d) (pret
 
 -- this is partial on purpose
 printTele :: Tm -> Doc ann
-printTele (Pi lt t) = foldr (\a d -> printArgL a <+> d) (":" <+> printTm t) lt
+printTele (Pi lt t) = foldr (\a d -> printArgL a <+> d) (typesep <+> printTm t) lt
 printTele _ = error "expecting a Pi type, got something else"
 
 printLit :: Literal -> Doc ann

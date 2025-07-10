@@ -24,11 +24,12 @@ instance Keywords (Doc ann) where
   arr     = "->"
   lcons   = comma
   vcons   = comma
+  typesep = ":"
 
 instance TypeAnn (Doc ann) where
-  typeAnn trm typ = trm <+> ":" <+> typ
-  teleCell Explicit trm typ = parens $ trm <+> ":" <+> typ
-  teleCell Implicit trm typ = braces $ trm <+> ":" <+> typ
+  typeAnn trm typ = trm <+> typesep <+> typ
+  teleCell Explicit trm typ = parens $ trm <+> typesep <+> typ
+  teleCell Implicit trm typ = braces $ trm <+> typesep <+> typ
 
 -- append an Import if needed
 printWithImport :: Import -> Doc ann -> Doc ann
@@ -56,8 +57,6 @@ printTm (Binary op e1 e2) = printTm e1 <+> printOp2 op <+> printTm e2
 printTm (Let ds expr) =
   "let" <+> align (vcat (map printLocalDefn ds) <+> "in") <> line <>
   printTm expr
-printTm (If cond thn els) =
-  "if" <+> printTm cond <+> "then" <+> printTm thn <+> "else" <+> printTm els
 printTm (Where expr ds) =
   printTm expr <> hardline <>
   indent 4 ("where" <> vcat (map printLocalDefn ds))
