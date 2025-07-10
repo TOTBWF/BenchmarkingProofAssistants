@@ -24,6 +24,9 @@ class Keywords rep where
   lcons   :: rep
   vcons   :: rep
   typesep :: rep
+  natT    :: rep
+  strT    :: rep
+  vectT   :: rep
 
 -- Generic printing patterns
 -- type annotations

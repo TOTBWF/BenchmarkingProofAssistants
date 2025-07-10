@@ -26,6 +26,9 @@ instance Keywords (Doc ann) where
   lcons   = comma
   vcons   = semi
   typesep = ":"
+  natT    = "nat"
+  strT    = "string"
+  vectT   = "Vect"
 
 instance TypeAnn (Doc ann) where
   typeAnn trm typ = trm <+> typesep <+> typ
@@ -58,9 +61,9 @@ printTm (Let ds expr) =
 printTm (App fun args) = printTm fun <+> (hsep $ map printTm args)
 printTm (Unary o e) = parens $ printOp1 o <+> printTm e
 printTm (Lit l) = printLit l
-printTm (KCon NatT _) = "nat"
-printTm (KCon StringT _) = "string"
-printTm (KCon VecT l) = "Vect" <+> hsep (map printTm l)
+printTm (KCon NatT _) = natT
+printTm (KCon StringT _) = strT
+printTm (KCon VecT l) = vectT <+> hsep (map printTm l)
 
 printReturnType :: Tm -> Doc ann
 printReturnType (PCon t []) = pretty t -- $ T.toLower t --required for nested functions

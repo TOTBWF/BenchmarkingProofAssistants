@@ -25,6 +25,9 @@ instance Keywords (Doc ann) where
   lcons   = comma
   vcons   = comma
   typesep = ":"
+  natT    = "Nat"
+  strT    = "String"
+  vectT   = "Vect"
 
 instance TypeAnn (Doc ann) where
   typeAnn trm typ = trm <+> typesep <+> typ
@@ -60,9 +63,9 @@ printTm (Let ds expr) =
 printTm (App fun args) = printTm fun <+> (fillSep (map (group . printTm) args))
 printTm (Unary o t) = parens $ printOp1 o <+> printTm t
 printTm (Lit l) = printLit l
-printTm (KCon NatT _) = "Nat"
-printTm (KCon StringT _) = "String"
-printTm (KCon VecT [s, t]) = "Vect" <+> printTm t <+> printTm s
+printTm (KCon NatT _) = natT
+printTm (KCon StringT _) = strT
+printTm (KCon VecT [s, t]) = vectT <+> printTm t <+> printTm s
 printTm (KCon VecT _) = error "Vect takes exactly two arguments"
 
 printLit :: Literal -> Doc ann

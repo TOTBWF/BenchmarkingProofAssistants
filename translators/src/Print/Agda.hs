@@ -25,6 +25,9 @@ instance Keywords (Doc ann) where
   lcons   = "\x2237" 
   vcons   = "\x2237" 
   typesep = ":"
+  natT    = "Nat"
+  strT    = "String"
+  vectT   = "Vec"
 
 instance TypeAnn (Doc ann) where
   typeAnn trm typ = trm <+> typesep <+> typ
@@ -55,9 +58,9 @@ printTm (Let ds expr) =
 printTm (App fun args) = printTm fun <+> softline' <> (sep $ map printTm args)
 printTm (Unary o t) = parens $ printOp1 o <+> printTm t
 printTm (Lit l) = printLit l
-printTm (KCon NatT _) = "Nat"
-printTm (KCon StringT _) = "String"
-printTm (KCon VecT l) = "Vec" <+> hsep (map printTm l)
+printTm (KCon NatT _) = natT
+printTm (KCon StringT _) = strT
+printTm (KCon VecT l) = vectT <+> hsep (map printTm l)
 
 printArgL :: Arg [ Name ] Tm -> Doc ann
 printArgL (Arg [] t _) = printTm t
