@@ -56,8 +56,6 @@ printTm (Let (d:[]) expr) = "let" <+> printLocalDefn d <> hardline <> printTm ex
 printTm (Let (d:ds) expr) =
   vcat (map (\x -> "let" <+> printLocalDefn x) (d:ds)) <> line <>
   printTm expr
-printTm (Where expr ds) = printTm expr <> hardline <>
-  indent 4 ("where" <> hardline <> vsep (map printLocalDefn ds))
 printTm (App fun args) = printTm fun <+> fillSep (map (group . printTm) args)
 printTm (Unary o t) = parens $ printOp1 o <+> printTm t
 printTm (Lit l) = printLit l

@@ -55,9 +55,6 @@ printTm (Binary op e1 e2) = printTm e1 <+> printOp2 op <+> printTm e2
 printTm (Let ds expr) =
   "let" <+> align (vcat (map printLocalDefn ds) <+> "in") <> line <>
   printTm expr
-printTm (Where expr ds) =
-  printTm expr <> hardline <>
-  indent 4 ("where " <+> vcat (map printLocalDefn ds))
 printTm (App fun args) = printTm fun <+> (hsep $ map printTm args)
 printTm (Unary o e) = parens $ printOp1 o <+> printTm e
 printTm (Lit l) = printLit l

@@ -52,9 +52,6 @@ printTm (Binary op e1 e2) = printTm e1 <+> printOp2 op <+> printTm e2
 printTm (Let ds expr) = 
   "let" <+> align (vcat (map printLocalDefn ds) <+> "in") <> line <>
   printTm expr
-printTm (Where expr ds) =
-  printTm expr <> line <>
-  indent 4 ("where" <> vcat (map printLocalDefn ds))
 printTm (App fun args) = printTm fun <+> softline' <> (sep $ map printTm args)
 printTm (Unary o t) = parens $ printOp1 o <+> printTm t
 printTm (Lit l) = printLit l
