@@ -33,11 +33,12 @@ instance Keywords (Doc ann) where
 
 class TypeAnn rep where
   typeAnn :: rep -> rep -> rep
-  teleCell :: rep -> rep -> rep
+  teleCell :: Visibility -> rep -> rep -> rep
 
 instance TypeAnn (Doc ann) where
   typeAnn trm typ = trm <+> ":" <+> typ
-  teleCell trm typ = parens $ trm <+> ":" <+> typ
+  teleCell Explicit trm typ = parens $ trm <+> ":" <+> typ
+  teleCell Implicit trm typ = brackets $ trm <+> ":" <+> typ
 
 
 -- FIXME: end '.' should not be hard-coded
@@ -52,11 +53,10 @@ printImport (ImportLib ListMod) = emptyDoc
 printTm :: Tm -> Doc ann
 printTm (Univ) = univ
 printTm (Pi lt t) = foldr (\a d -> printArgL a <+> arr <+> d) (printTm t) lt
-printTm (Arr t1 t2) = printTm t1 <+> arr <+> printTm t2
+printTm (Arr t1 t2) = printArgL t1 <+> arr <+> printTm t2
 printTm (PCon t []) = pretty t
 printTm (PCon name types) = pretty name <+> hsep (map printTm types)
 printTm (DCon name types) = pretty name <+> hsep (map printTm types)
-printTm (Index names ty) = "forall" <+> braces (typeAnn (pretty $ T.unwords names) (printTm ty))
 printTm (Var var) = pretty var
 printTm (Paren e) = parens $ printTm e
 printTm (Binary op e1 e2) = printTm e1 <+> printOp2 op <+> printTm e2
@@ -84,8 +84,8 @@ printArg :: Pretty a => Arg a Tm -> Doc ann
 printArg a = parens $ typeAnn (pretty $ arg a) (printTm $ argty a)
 
 printArgL :: Arg [ Name ] Tm -> Doc ann
-printArgL (Arg [] t) = printTm t
-printArgL (Arg (x:xs) t) = teleCell (foldr (\ nm d -> pretty nm <+> d) (pretty x) xs)  (printTm t) 
+printArgL (Arg [] t _) = printTm t
+printArgL (Arg (x:xs) t v) = teleCell v (foldr (\ nm d -> pretty nm <+> d) (pretty x) xs)  (printTm t) 
 
 -- this is partial on purpose
 printTele :: Tm -> Doc ann
@@ -113,7 +113,9 @@ printFieldDecl (FieldDecl fields) = vsep $ map printFieldT fields
 
 -- Hack: printing implicits using a comma
 printIndices :: Tm -> Doc ann
-printIndices (Arr (Index n t) ctype) = (printTm (Index n t)) <> comma <+> (printTm ctype)
+printIndices (Arr (Arg n t Implicit) ctype) = 
+  "forall" <+> braces (typeAnn (pretty $ T.unwords n) (printTm t))
+  <> comma <+> (printTm ctype)
 printIndices t = printTm t
 
 printConstr :: Constr -> Doc ann
@@ -149,7 +151,7 @@ printDef (DefPDataType name params constr ty) =
   where
     printParams [] = typeAnn (pretty name) (printTm ty)
     printParams (_:_) =  (pretty name) <+>
-      typeAnn (hsep (map ( \(Arg x y) -> teleCell (pretty x) (printTm y)) params)) (printTm ty)
+      typeAnn (hsep (map ( \(Arg x y v) -> teleCell v (pretty x) (printTm y)) params)) (printTm ty)
 
 --Function for Records
 printDef (DefRecType name params consName fields _) = 
@@ -158,7 +160,7 @@ printDef (DefRecType name params consName fields _) =
     where
         recName = case params of
             [] -> pretty name
-            _ -> pretty name <+> hsep (map (\(Arg n t) -> teleCell (pretty n) (printTm t)) params)
+            _ -> pretty name <+> hsep (map (\(Arg n t v) -> teleCell v (pretty n) (printTm t)) params)
 
 printDef (DefRec name recType consName (FieldDef fields)) =
   "Definition" <+> typeAnn (pretty name) (printTm recType) <+> assign <> hardline <>

@@ -34,11 +34,12 @@ instance Keywords (Doc ann) where
 
 class TypeAnn rep where
   typeAnn :: rep -> rep -> rep
-  teleCell :: rep -> rep -> rep
+  teleCell :: Visibility -> rep -> rep -> rep
 
 instance TypeAnn (Doc ann) where
   typeAnn trm typ = trm <+> ":" <+> typ
-  teleCell trm typ = parens $ trm <+> ":" <+> typ
+  teleCell Explicit trm typ = parens $ trm <+> ":" <+> typ
+  teleCell Implicit trm typ = braces $ trm <+> ":" <+> typ
 
 printImport :: Import -> Doc ann
 printImport (ImportLib NatMod) = import_ <+> "Agda.Builtin.Nat"
@@ -47,19 +48,19 @@ printImport (ImportLib ListMod) = import_ <+> "Agda.Builtin.List"
 printImport (ImportLib StringMod) = import_ <+> "Agda.Builtin.String"
 
 printArgL :: Arg [ Name ] Tm -> Doc ann
-printArgL (Arg [] t) = printTm t
-printArgL (Arg (x:xs) t) = teleCell (foldr (\ nm d -> pretty nm <+> d) (pretty x) xs)  (printTm t) 
+printArgL (Arg [] t _) = printTm t
+printArgL (Arg l@(_:_) t v) = teleCell v (hsep $ map pretty l)  (printTm t) 
 
 -- Print Terms
 printTm :: Tm -> Doc ann
 printTm (Univ) = univ
 printTm (Pi lt t) = foldr (\a d -> printArgL a <+> arr <+> d) (printTm t) lt
-printTm (Arr t1 t2) = printTm t1 <+> arr <+> printTm t2
+printTm (Arr t1 t2) = printArgL t1 <+> arr <+> printTm t2
 printTm (PCon t []) = pretty t
 printTm (PCon name types) = pretty name <+> hsep (map printTm types)
 printTm (DCon t []) = pretty t
 printTm (DCon name types) = pretty name <+> hsep (map printTm types)
-printTm (Index names ty) = braces $ typeAnn (hsep $ map pretty names) (printTm ty)
+-- printTm (Index names ty) = braces $ typeAnn (hsep $ map pretty names) (printTm ty)
 printTm (Var var) = pretty var
 printTm (Paren e) = parens $ printTm e
 printTm (Binary op e1 e2) = printTm e1 <+> printOp2 op <+> printTm e2
@@ -136,7 +137,7 @@ printDef (DefPDataType name params cons ty) =
     indent 1 (printDataConst cons) <> hardline
     where
       pParams [] = pretty name
-      pParams _  = pretty name <+> hsep (map (\(Arg x y) -> teleCell (pretty x) (printTm y)) params)
+      pParams _  = pretty name <+> hsep (map (\(Arg x y v) -> teleCell v (pretty x) (printTm y)) params)
 
 -- Function for records
 printDef (DefRecType name params consName fields _) =
@@ -144,7 +145,7 @@ printDef (DefRecType name params consName fields _) =
     indent 4 (vsep $ "constructor" <+> pretty consName : "field" : (indent 4 $ printFieldDecl fields) : []) <>
     hardline
     where
-      ll = map (\(Arg n t) -> teleCell (pretty n) (printTm t)) params
+      ll = map (\(Arg n t v) -> teleCell v (pretty n) (printTm t)) params
       pp_params = if null params then pretty name else pretty name <+> hsep ll
 
 printDef (DefRec name recTm consName (FieldDef fields)) =

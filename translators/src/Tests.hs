@@ -46,7 +46,7 @@ sum2vars n | n == 0    = num 1
            | otherwise = plus (vx n) (vx n)
 
 nary :: Tm -> Natural -> Tm
-nary t n = foldr Arr t (replicate (fromIntegral n) t)
+nary t n = foldr Arr t (replicate (fromIntegral n) (aarg t))
 
 -- this is our list of expandable tests. each test should take a Natural as an
 -- argument and return a program written in the internal grammar (see
@@ -68,7 +68,7 @@ _tests =
             genFunc :: Natural -> [LocalDefn]
             genFunc p = foldr (\a b -> LocDefFun (nm 'f' a)
                                        (Just $ nary nat a)
-                                       (iter a (\i -> Arg (nm 'x' i) nat))
+                                       (iter a (\i -> earg (nm 'x' i) nat))
                                        (foldl (\acc i -> plus acc (vx i)) (num 1) [1..a]) : b)
                               []
                               $ reverse [1..p]
@@ -133,8 +133,8 @@ _tests =
         -- Helper to build the sum exp 1 + 2 + ... + n
         buildSum m = foldr (\a b -> plus b (num a)) (num 1) $ reverse [2..m]
 
-        -- Create param as a list of Args: f1 : Nat, f2 : Nat, …, fn : Nat
-        params = iter n (\i -> Arg (nm 'f' i) nat)
+        -- Create param as a list of args: f1 : Nat, f2 : Nat, …, fn : Nat
+        params = iter n (\i -> earg (nm 'f' i) nat)
 
         -- Define the record X with param, a constructor "Const",
         -- two fields "sums" and "values", and overall type Set.
@@ -177,7 +177,7 @@ _tests =
 
     , \n ->  --13 Description: creates a datatype with a single constructor accepting N parameters
         let
-            decl = [DefPDataType "D" (iter n (\i -> Arg (nm 'p' i) Univ)) 
+            decl = [DefPDataType "D" (iter n (\i -> earg (nm 'p' i) Univ)) 
                         (datacons [dcons "C" (PCon "D" (iter n (con . nm 'p')))]) Univ]
         in Module "Parameters_Datatypes" [] $ trivial n decl
 
@@ -214,8 +214,8 @@ _tests =
 
     , \n -> let -- 16 Description: Simple datatype declaration with a specified number of indices, defined implicitly.
         decl = [DefPDataType "D" [] 
-                   (datacons [dcons "C1" (Arr (Index (nms 'x' n) nat) (con ("D " `T.append` T.unwords (nms 'x' n))))])
-                   (Arr (nary nat (n-1)) Univ)]
+                   (datacons [dcons "C1" (Arr (miarg (nms 'x' n) nat) (con ("D " `T.append` T.unwords (nms 'x' n))))])
+                   (Arr (aarg $ nary nat (n-1)) Univ)]
        in Module "DataImplicitIndices" [ImportLib NatMod] $ trivial n decl
 
     , \n -> let -- 17 Description: A file consisting of a single long line (length specified by the user).
@@ -224,29 +224,29 @@ _tests =
 
     , \n ->  --18 Description: A single datatype where 'n' represents the number of 'Type' parameters, all needed for 'n' constructors
         let
-            decl =  [DefPDataType "D" (iter n (\i -> Arg (nm 'p' i) Univ))
+            decl =  [DefPDataType "D" (iter n (\i -> earg (nm 'p' i) Univ))
                                  (datacons $ iter n (\ i -> dcons (nm 'C' i) (PCon "D" (iter n (\j -> con (nm 'p' j) )))) ) Univ]
         in Module "ConstructorsParameters_Datatypes" [] $ trivial n decl
 
     , \n -> let -- 19  Description: A single datatype where 'n' represents the number of indices, all needed for 'n' constructors
         decl = [DefPDataType "D" []
-           (datacons (iter n (\ i -> dcons (nm 'C' i) (Arr (Index (nms 'x' i) nat)
+           (datacons (iter n (\ i -> dcons (nm 'C' i) (Arr (miarg (nms 'x' i) nat)
                                           (PCon "D" $ iter n (\j -> if j <= i then con (nm 'X' j) else con "0"))
                                       ))))
-           (Arr (nary nat (n-1)) Univ)]
+           (Arr (aarg $ nary nat (n-1)) Univ)]
         in Module "IndicesConstructors_Datatypes" [ImportLib NatMod] $ trivial n decl
     , \n -> let -- 20  Description: A single datatype where 'n' represents the number of 'Type' parameters as well as the number of indices
-        decl = [DefPDataType "D" (iter n (\i -> Arg (nm 'p' i) Univ))
-          (datacons [dcons "C" (Arr (Index (nms 'X' n) nat) (PCon "D" ((iter n (con . nm 'p')) ++ 
+        decl = [DefPDataType "D" (iter n (\i -> earg (nm 'p' i) Univ))
+          (datacons [dcons "C" (Arr (miarg (nms 'X' n) nat) (PCon "D" ((iter n (con . nm 'p')) ++ 
                      iter n (con . nm 'X'))))])
-          (Arr (nary nat (n-1)) Univ)]
+          (Arr (aarg $ nary nat (n-1)) Univ)]
         in Module "IndicesParameters_Datatypes" [ImportLib NatMod] $ trivial n decl
     ,  \n -> --21 Description: A function pattern matching on 'n' constructors of a datatype
         let
         decl = [DefPDataType "D" [] (datacons $ iter n (\ i -> dcons (nm 'C' i) (con "D"))) Univ, --create datatype
           OpenName "D",
-          DefPatt "F" (Pi (NE.singleton (Arg ["C"] (con "D"))) nat) "C" 
-              (match $ iter n (\i -> (case_ [Arg (nm 'C' i) (con "D")] (num i)))),
+          DefPatt "F" (Pi (NE.singleton (mearg ["C"] (con "D"))) nat) "C" 
+              (match $ iter n (\i -> (case_ [earg (nm 'C' i) (con "D")] (num i)))),
           DefTVar "N" nat (genCall n)]
         genCall p = foldr (\a b -> plus (app1 "F" (con (nm 'C' a))) b)
                                         (app1 "F" (con "C1"))

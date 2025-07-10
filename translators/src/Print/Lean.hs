@@ -35,11 +35,12 @@ instance Keywords (Doc ann) where
 
 class TypeAnn rep where
   typeAnn :: rep -> rep -> rep
-  teleCell :: rep -> rep -> rep
+  teleCell :: Visibility -> rep -> rep -> rep
 
 instance TypeAnn (Doc ann) where
   typeAnn trm typ = trm <+> ":" <+> typ
-  teleCell trm typ = parens $ trm <+> ":" <+> typ
+  teleCell Explicit trm typ = parens $ trm <+> ":" <+> typ
+  teleCell Implicit trm typ = braces $ trm <+> ":" <+> typ
 
 -- append an Import if needed
 printWithImport :: Import -> Doc ann -> Doc ann
@@ -53,12 +54,11 @@ printWithImport (ImportLib ListMod) m = m
 printTm :: Tm -> Doc ann
 printTm (Univ) = univ
 printTm (Pi lt t) = foldr (\a d -> printArgL a <+> arr <+> d) (printTm t) lt
-printTm (Arr t1 t2) = printTm t1 <+> arr <+> printTm t2
+printTm (Arr t1 t2) = printArgL t1 <+> arr <+> printTm t2
 printTm (PCon t []) = pretty t
 printTm (PCon name types) = pretty name <+> hsep (map printTm types)
 printTm (DCon t []) = pretty t
 printTm (DCon name types) = pretty name <+> hsep (map printTm types)
-printTm (Index names ty) = braces $ typeAnn (hsep (map pretty names)) (printTm ty)
 printTm (Var var) = pretty var
 printTm (Paren e) = parens $ printTm e
 printTm (Binary op e1 e2) = printTm e1 <+> printOp2 op <+> printTm e2
@@ -80,7 +80,6 @@ printTm (KCon NatT _) = "Nat"
 printTm (KCon StringT _) = "String"
 printTm (KCon VecT l) = "Vector" <+> hsep (map printTm l)
 
-
 printReturnType :: Tm -> Doc ann
 printReturnType (PCon t []) = pretty t
 printReturnType (Arr _ t) = printReturnType t
@@ -88,11 +87,11 @@ printReturnType t@(KCon _ _) = printTm t
 printReturnType _ = error "should not occur as a return type"
 
 printArg :: Pretty a => Arg a Tm -> Doc ann
-printArg a = teleCell (pretty $ arg a) (printTm $ argty a)
+printArg a = parens $ typeAnn (pretty $ arg a) (printTm $ argty a)
 
 printArgL :: Arg [ Name ] Tm -> Doc ann
-printArgL (Arg [] t) = printTm t
-printArgL (Arg (x:xs) t) = teleCell (foldr (\ nm d -> pretty nm <+> d) (pretty x) xs)  (printTm t) 
+printArgL (Arg [] t _) = printTm t
+printArgL (Arg l@(_:_) t v) = teleCell v (hsep $ map pretty l) (printTm t) 
 
 printLit :: Literal -> Doc ann
 printLit (Nat n) = pretty n
@@ -140,7 +139,7 @@ printDef _ (DefPDataType name params constr t) =
       typeAnn (pParams params) (printTm t) <+> "where" <> hardline <> printDataConst constr
   where
     pParams [] = pretty name
-    pParams _  = pretty name <+> hsep (map (\(Arg x y) -> teleCell (pretty x) (printTm y)) params)
+    pParams _  = pretty name <+> hsep (map (\(Arg x y v) -> teleCell v (pretty x) (printTm y)) params)
 
 -- records Def
 printDef _ (DefRecType name params consName fields _) =
@@ -149,7 +148,7 @@ printDef _ (DefRecType name params consName fields _) =
       where
         prettyParams = case params of
             [] -> pretty name
-            _ -> pretty name <+> hsep (map (\(Arg n t) -> teleCell (pretty n) (printTm t)) params)
+            _ -> pretty name <+> hsep (map (\(Arg n t v) -> teleCell v (pretty n) (printTm t)) params)
 
 -- OpenLine: It takes a list of record definitions (recs) and uses it to build an open line.
 -- Exclusive lean syntax needed for simplicity

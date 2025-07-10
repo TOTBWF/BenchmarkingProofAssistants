@@ -2,9 +2,11 @@ module Grammar (Module (..), Import (..), Definition (..), Tm (..), Arg (..)
   , KnownMods (..), Op1 (..), Op2 (..), LocalDefn (..), Literal (..)
   , FieldDecl (..), FieldT (..), FieldV (..), FieldDef (..), KnownT (..)
   , DataCons (..), Constr (..), Parameters, Patterns (..), Pat (..)
+  , Visibility (..)
   , Name
   , nat, con, num, bool, list, vec, vecT, string, stringT, suc, plus, app1, appnm
-  , decfields, fieldty, fv, rec, datacons, dcons, match, case_) where
+  , decfields, fieldty, fv, rec, datacons, dcons, match, case_
+  , earg, mearg, aarg, iarg, miarg) where
 
 import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
@@ -47,9 +49,8 @@ data Tm
   = PCon Name [Tm]        -- (parameterized) type constructor
   | DCon Name [Tm]        -- dependent type constructor (note that a dependent type is also parameterized)
   | KCon KnownT [Tm]      -- built-in (like Vec)
-  | Arr Tm Tm             -- (non-dependent) function type
+  | Arr (Arg [Name] Tm) Tm           -- (non-dependent) function type
   | Pi (NonEmpty (Arg [Name] Tm)) Tm -- Dependent function type
-  | Index [Name] Tm
   | Univ                  -- a Universe, aka "Type" itself, called "Set" in Agda
   | Var Name
   | Binary Op2 Tm Tm      -- only for known, hard-coded binary operations
@@ -65,7 +66,8 @@ data Tm
 
 data KnownT = NatT | VecT | StringT
 
-data Arg a b = Arg { arg :: a, argty :: b }
+data Visibility = Explicit | Implicit
+data Arg a b = Arg { arg :: a, argty :: b , vis :: Visibility}
 
 -- Separate FieldT and FieldV for printing purposes
 -- A single Field type
@@ -173,3 +175,23 @@ match = Patterns
 
 case_ :: [Arg Name Tm] -> Tm -> Pat
 case_ = Pat
+
+-- single-name explicit Arg
+earg :: Name -> Tm -> Arg Name Tm
+earg n t = Arg n t Explicit
+
+-- single-name implicit Arg
+iarg :: Name -> Tm -> Arg Name Tm
+iarg n t = Arg n t Implicit
+
+-- multi-name explicit Arg
+mearg :: [Name] -> Tm -> Arg [Name] Tm
+mearg n t = Arg n t Explicit
+
+-- multi-name implicit Arg
+miarg :: [Name] -> Tm -> Arg [Name] Tm
+miarg n t = Arg n t Implicit
+
+-- anonymous explicit Arg
+aarg :: Tm -> Arg [Name] Tm
+aarg t = Arg [] t Explicit
