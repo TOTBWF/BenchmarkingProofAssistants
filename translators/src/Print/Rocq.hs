@@ -65,12 +65,6 @@ printTm (KCon NatT _) = natT
 printTm (KCon StringT _) = strT
 printTm (KCon VecT l) = vectT <+> hsep (map printTm l)
 
-printReturnType :: Tm -> Doc ann
-printReturnType (PCon t []) = pretty t -- $ T.toLower t --required for nested functions
-printReturnType (Arr _ t) = printReturnType t
-printReturnType t@(KCon _ _) = printTm t
-printReturnType _ = error "should not occur as a return type"
-
 printArg :: Pretty a => Arg a Tm -> Doc ann
 printArg a = parens $ typeAnn (pretty $ arg a) (printTm $ argty a)
 
@@ -124,7 +118,7 @@ printMatch (Patterns p) = vsep (map printCase p)
 printLocalDefn :: LocalDefn -> Doc ann
 printLocalDefn (LocDefFun var Nothing args expr) =
   prettyArgs var printArg args <+> assign <+> printTm expr
-printLocalDefn (LocDefFun var (Just t) args expr) = typeAnn targs (printReturnType t) <+> assign <+>
+printLocalDefn (LocDefFun var (Just t) args expr) = typeAnn targs (printTm t) <+> assign <+>
   printTm expr
   where targs = prettyArgs var printArg args
 

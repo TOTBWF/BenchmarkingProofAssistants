@@ -108,7 +108,7 @@ printLocalDefn (LocDefFun var ty args expr) =
   typeSig <> tvar <+> assign <+> align (printTm expr)
     where
         typeSig = case ty of
-            Just t -> typeAnn (pretty var) (printTm t) <> line
+            Just t -> typeAnn (pretty var) ((hsep $ punctuate (space <> arr) $ map (printTm . argty) args) <+> arr <+> printTm t) <> line
             Nothing -> mempty
         tvar = case args of
             [] -> pretty var

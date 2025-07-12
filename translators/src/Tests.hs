@@ -63,15 +63,15 @@ _tests =
 
     , -- 3 Description: Generate Nested Functions
     \n -> let --3
-            decl = [ DefTVar "n" nat (Let (reverse $ genFunc n) (genCall n)) ]
+            decl = [ DefTVar "n" nat (Let (genFunc n) (genCall n)) ]
             -- Generate function definitions dynamically based on (1 to n)
             genFunc :: Natural -> [LocalDefn]
             genFunc p = foldr (\a b -> LocDefFun (nm 'f' a)
-                                       (Just $ nary nat a)
+                                       (Just nat)
                                        (iter a (\i -> earg (nm 'x' i) nat))
                                        (foldl (\acc i -> plus acc (vx i)) (num 1) [1..a]) : b)
                               []
-                              $ reverse [1..p]
+                              [1..p]
 
             -- Generate function call expressions
             genCall :: Natural -> Tm
