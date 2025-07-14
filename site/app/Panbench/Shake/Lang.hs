@@ -23,6 +23,7 @@ import System.Directory (findExecutable)
 import System.FilePath
 
 import Panbench.Shake.File
+import Panbench.Shake.Install.Agda
 import Panbench
 
 import Panbench.Lang qualified as Lang
@@ -35,6 +36,11 @@ import Panbench.Lang qualified as Lang
 --
 -- Always returns an absolute path.
 findDefaultExecutable :: Lang -> Action FilePath
+findDefaultExecutable Agda =
+  needAgdaInstall $ AgdaInstallQ
+    { agdaInstallRev = "release-2.8.0"
+    , agdaInstallFlags = []
+    }
 findDefaultExecutable lang =
   liftIO (findExecutable (Lang.defaultExecutable lang)) >>= \case
     Just bin -> pure bin
