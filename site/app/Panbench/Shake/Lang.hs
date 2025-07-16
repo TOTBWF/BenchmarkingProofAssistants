@@ -39,7 +39,8 @@ findDefaultExecutable :: Lang -> Action FilePath
 findDefaultExecutable Agda =
   needAgdaInstall $ AgdaInstallQ
     { agdaInstallRev = "release-2.8.0"
-    , agdaInstallFlags = []
+    , agdaInstallFlags = defaultAgdaInstallFlags
+    }
     }
 findDefaultExecutable lang =
   liftIO (findExecutable (Lang.defaultExecutable lang)) >>= \case

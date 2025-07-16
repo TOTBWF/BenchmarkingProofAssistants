@@ -1,13 +1,17 @@
 -- | Shake utilities for interacting with @git@.
 module Panbench.Shake.Git
-  ( GitCloneQ(..)
+  ( gitRepoExists
+  , gitWorktreeExists
+  -- $gitClone
+  , GitCloneQ(..)
   , needGitClone
+  -- $gitWorktree
   , GitWorktreeQ(..)
   , needGitWorktree
+  , gitRevWorktreePath
+  -- $gitRules
   , gitRules
   ) where
-
-import Control.Monad
 
 import Development.Shake
 import Development.Shake.Classes
@@ -15,11 +19,29 @@ import Development.Shake.Classes
 import GHC.Generics
 
 import System.FilePath
+import System.Directory qualified as Dir
 
 -- | Check if a directory exists and contains a git repository.
+--
+-- Unlike @'doesFileExist'@, this does not add the directory as a
+-- @shake@ dependency.
 gitRepoExists :: FilePath -> Action Bool
 gitRepoExists dir =
-  doesDirectoryExist (dir </> ".git")
+  -- We use @Dir.doesDirectoryExist@ to avoid tracking the @.git@ folder as a dep.
+  liftIO $ Dir.doesDirectoryExist (dir </> ".git")
+
+-- | Check if a worktree exists and contains a git repository.
+--
+-- Unlike @'doesFileExist'@, this does not add the directory as a
+-- @shake@ dependency.
+gitWorktreeExists :: FilePath -> Action Bool
+gitWorktreeExists dir =
+  liftIO $ Dir.doesFileExist (dir </> ".git")
+
+
+-- * Git Clone
+--
+-- $gitClone
 
 -- | Shake query for cloning a git repository.
 data GitCloneQ = GitCloneQ
@@ -48,6 +70,10 @@ gitCloneOracle =
 needGitClone :: GitCloneQ -> Action ()
 needGitClone = askOracle
 
+-- * Git Worktrees
+--
+-- $gitWorktree
+
 -- | Shake query for creating a @git@ worktree.
 data GitWorktreeQ = GitWorktreeQ
   { gitWorktreeUpstream :: FilePath
@@ -71,7 +97,7 @@ gitWorktreeOracle =
   addOracle \GitWorktreeQ{..} -> do
     needGitClone (GitCloneQ gitWorktreeUpstream gitWorktreeRepo)
     -- Worktrees store their .git in a file, not a directory.
-    doesFileExist (gitWorktreeDir </> ".git") >>= \case
+    gitWorktreeExists gitWorktreeDir >>= \case
       True -> pure ()
       False -> command [] "git" ["--git-dir", gitWorktreeRepo </> ".git", "worktree", "add", gitWorktreeDir, gitWorktreeRev]
 
@@ -80,6 +106,16 @@ gitWorktreeOracle =
 -- This will clone the repository if required.
 needGitWorktree :: GitWorktreeQ -> Action ()
 needGitWorktree = askOracle
+
+-- | Construct a path to checkout a @git@ worktree to
+-- based off of a revision.
+gitRevWorktreePath :: FilePath -> String -> FilePath
+gitRevWorktreePath repo rev =
+  repo ++ "-" ++ map (\c -> if isPathSeparator c then '-' else c) rev
+
+-- | Shake rules for git
+--
+-- $gitRules
 
 gitRules :: Rules ()
 gitRules = do
