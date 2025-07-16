@@ -9,6 +9,9 @@ cradle:
     - path: "site/app/Main.hs"
       component: "panbench-site:exe:site"
 
+    - path: "site/app/Panbench/Shake/AllCores.hs"
+      component: "panbench-site:exe:site"
+
     - path: "site/app/Panbench/Shake/Benchmark.hs"
       component: "panbench-site:exe:site"
 
@@ -18,10 +21,16 @@ cradle:
     - path: "site/app/Panbench/Shake/File.hs"
       component: "panbench-site:exe:site"
 
+    - path: "site/app/Panbench/Shake/Git.hs"
+      component: "panbench-site:exe:site"
+
     - path: "site/app/Panbench/Shake/HTML.hs"
       component: "panbench-site:exe:site"
 
     - path: "site/app/Panbench/Shake/Install/Agda.hs"
+      component: "panbench-site:exe:site"
+
+    - path: "site/app/Panbench/Shake/Install/Lean.hs"
       component: "panbench-site:exe:site"
 
     - path: "site/app/Panbench/Shake/Lang.hs"
