@@ -31,6 +31,7 @@ executable site
         TypeFamilies
         TypeOperators
     other-modules:
+        Panbench.Shake.AllCores
         Panbench.Shake.Benchmark
         Panbench.Shake.Dev
         Panbench.Shake.File
