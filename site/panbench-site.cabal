@@ -38,6 +38,7 @@ executable site
         Panbench.Shake.Git
         Panbench.Shake.HTML
         Panbench.Shake.Install.Agda
+        Panbench.Shake.Install.Lean
         Panbench.Shake.Lang
         Panbench.Shake.Matrix
         Panbench.Shake.Vega
