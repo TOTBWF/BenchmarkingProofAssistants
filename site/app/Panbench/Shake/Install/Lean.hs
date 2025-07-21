@@ -14,6 +14,7 @@ import GHC.Generics
 
 import Panbench.Shake.AllCores
 import Panbench.Shake.Git
+import Panbench.Shake.Store
 
 import System.Directory qualified as Dir
 import System.FilePath
@@ -43,9 +44,9 @@ defaultLeanMakeFlags = []
 -- | Oracle for installing a version of Lean 4.
 --
 -- The oracle returns the absolute path to the produced @lean@ binary.
-leanInstallOracle :: Rules (LeanInstallQ -> Action FilePath)
+leanInstallOracle :: Rules ()
 leanInstallOracle =
-  addOracle \LeanInstallQ{..} -> do
+  addStoreOracle "_build/store" \LeanInstallQ{..} -> do
     let repoDir = "_build/repos/lean"
     let workDir = gitRevWorktreePath repoDir leanInstallRev
     needGitWorktree $ GitWorktreeQ
@@ -57,16 +58,16 @@ leanInstallOracle =
     withAllCores \nCores -> do
       command_ [Cwd workDir] "cmake" leanCMakeFlags
       command_ [Cwd workDir] "make" (["stage3", "-C", "build/release", "-j" ++ show nCores] ++ leanMakeFlags)
-      cwd <- liftIO $ Dir.getCurrentDirectory
-      pure (cwd </> workDir </> "build/release/stage3/bin/lean")
+      pure (workDir </> "build/release/stage3/")
 
 -- | Require that a particular version of @lean@ is installed,
 -- and return the absolute path pointing to the executable.
 needLeanInstall :: LeanInstallQ -> Action FilePath
-needLeanInstall = askOracle
+needLeanInstall q = do
+  (store, _) <- askStoreOracle q
+  liftIO $ Dir.makeAbsolute (store </> "bin" </> "lean")
 
 -- | Shake rules for installing @lean@.
 leanInstallRules :: Rules ()
 leanInstallRules = do
-  _ <- leanInstallOracle
-  pure ()
+  leanInstallOracle
