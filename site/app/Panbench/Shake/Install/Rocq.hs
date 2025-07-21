@@ -40,7 +40,7 @@ defaultRocqInstallFlags :: [String]
 defaultRocqInstallFlags = []
 
 defaultRocqOcamlCompiler :: String
-defaultRocqOcamlCompiler = "ocaml-variants.4.14.1+options,ocaml-option-flambda"
+defaultRocqOcamlCompiler = "ocaml-variants.4.14.2+options,ocaml-option-flambda"
 
 rocqInstallOracle :: Rules ()
 rocqInstallOracle =
