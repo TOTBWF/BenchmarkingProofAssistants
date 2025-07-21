@@ -85,7 +85,7 @@ benchmark path args env workingDir =
       withArray0 nullPtr cenv \cenvp ->
         c_benchmark cpath cargv cenvp p
     if r == -1 then do
-      throwErrno "Panbench.Shake.Benchmark.benchmark"
+      throwErrnoPath "Panbench.Shake.Benchmark.benchmark" path
     else
       peek p
 {-# NOINLINE benchmark #-}
