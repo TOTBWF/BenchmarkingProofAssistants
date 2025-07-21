@@ -5,13 +5,17 @@ import Development.Shake
 import System.Directory
 
 import Panbench.Shake.Dev
+import Panbench.Shake.Env
 import Panbench.Shake.Git
 import Panbench.Shake.HTML
 import Panbench.Shake.Install.Agda
-import Panbench.Shake.Install.Lean
 import Panbench.Shake.Install.Idris
+import Panbench.Shake.Install.Lean
+import Panbench.Shake.Install.Rocq
 import Panbench.Shake.Lang
+import Panbench.Shake.Make
 import Panbench.Shake.Matrix
+import Panbench.Shake.Opam
 
 main :: IO ()
 main = shakeArgs (shakeOptions {shakeFiles="_build"}) do
