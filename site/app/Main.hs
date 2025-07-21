@@ -20,6 +20,7 @@ main = shakeArgs (shakeOptions {shakeFiles="_build"}) do
   siteRules
 
   gitRules
+  envRules
   agdaInstallRules
   leanInstallRules
   idrisInstallRules
