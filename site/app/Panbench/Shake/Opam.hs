@@ -16,6 +16,7 @@ module Panbench.Shake.Opam
   , needOpamSwitch
   , withOpamSwitch
   -- $shakeOpamInstall
+  , askOpamVersions
   , needOpamInstall
   , needsOpamInstall
   , needsOpamInstall_
@@ -238,8 +239,17 @@ type instance RuleResult OpamVersionQ = (Map String String, [String])
 
 -- | Get a list of installed package versions in a @opam@ switch, along with a list
 -- of packages that do not have versions.
+--
+-- Note that this will cache its results on a per-run basis.
+-- For a version that does not cache, see @'askOpamVersionsNoCache'@
 askOpamVersions :: OpamEnvA -> [String] -> Action (Map String String, [String])
 askOpamVersions opamVersionEnv opamVersionPackages = askOracle OpamVersionQ {..}
+
+-- | Get a list of installed package versions in a @opam@ switch, along with a list
+-- of packages that do not have versions without caching the results.
+askOpamVersionsNoCache :: OpamEnvA -> [String] -> Action (Map String String, [String])
+askOpamVersionsNoCache opamVersionEnv opamVersionPackages =
+  opamVersionOracle OpamVersionQ {..}
 
 -- | Shake oracle for getting package versions.
 opamVersionOracle :: OpamVersionQ -> Action (Map String String, [String])
@@ -277,7 +287,7 @@ needsOpamInstall_ opamInstallEnv opamInstallPackages =
 -- | Oracle for installing @opam@ packages.
 opamInstallOracle :: OpamInstallQ -> Action (Map String String)
 opamInstallOracle OpamInstallQ{..} = do
-  (hasVersion, hasNoVersion) <- askOpamVersions opamInstallEnv opamInstallPackages
+  (hasVersion, hasNoVersion) <- askOpamVersionsNoCache opamInstallEnv opamInstallPackages
   -- Install any missing deps.
   -- We need to make sure to skip the install/version check when all packages are installed,
   -- as @opam@ will yell about missing arguments when provided with an empty package list.
@@ -288,7 +298,7 @@ opamInstallOracle OpamInstallQ{..} = do
       _ -> do
         withAllCores \nCores ->
           opamCommand_ (opamEnvOpts opamInstallEnv) (["install"] ++ hasNoVersion ++ ["--jobs=" ++ show nCores])
-        (justInstalledVersions, stillNoVersion) <- askOpamVersions opamInstallEnv hasNoVersion
+        (justInstalledVersions, stillNoVersion) <- askOpamVersionsNoCache opamInstallEnv hasNoVersion
         when (not $ null stillNoVersion) do
           fail $ unlines $ ["The following packages were installed, yet still do not have a version:"] ++ stillNoVersion
         pure justInstalledVersions
