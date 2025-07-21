@@ -23,9 +23,11 @@ main = shakeArgs (shakeOptions {shakeFiles="_build"}) do
   opamRules
   gitRules
   envRules
+
   agdaInstallRules
   leanInstallRules
   idrisInstallRules
+  rocqInstallRules
 
   withTargetDocs "Remove all generated html files." $
     phony "clean-site" do

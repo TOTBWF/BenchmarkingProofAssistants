@@ -19,13 +19,13 @@ import GHC.Generics
 
 import Numeric.Natural
 
-import System.Directory (findExecutable)
 import System.FilePath
 
 import Panbench.Shake.File
 import Panbench.Shake.Install.Agda
 import Panbench.Shake.Install.Lean
 import Panbench.Shake.Install.Idris
+import Panbench.Shake.Install.Rocq
 import Panbench
 
 import Panbench.Lang qualified as Lang
@@ -54,14 +54,13 @@ findDefaultExecutable Idris =
     { idrisInstallRev = "v0.7.0"
     , idrisInstallScheme = Chez
     }
-findDefaultExecutable lang =
-  liftIO (findExecutable (Lang.defaultExecutable lang)) >>= \case
-    Just bin -> pure bin
-    Nothing ->
-      fail $ unlines $
-      [ "Could not find executable for " <> show lang <> " in the path."
-      , "Perhaps it is not installed?"
-      ]
+findDefaultExecutable Rocq =
+  needRocqInstall $ RocqInstallQ
+    { rocqInstallRev = "V9.0.0"
+    , rocqInstallFlags = defaultRocqInstallFlags
+    , rocqOcamlCompiler = defaultRocqOcamlCompiler
+    , rocqStdlibVersion = "9.0.0"
+    }
 
 -- | Remove all build artifacts for a @'Lang'@ in a directory.
 cleanBuildArtifacts :: Lang -> FilePath -> Action ()
