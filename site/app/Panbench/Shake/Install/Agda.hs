@@ -15,6 +15,10 @@ import GHC.Generics
 
 import Panbench.Shake.AllCores
 import Panbench.Shake.Git
+import Panbench.Shake.Store
+
+import System.Directory qualified as Dir
+import System.FilePath
 
 -- | Query for installing a version of @agda@.
 data AgdaInstallQ = AgdaInstallQ
@@ -25,8 +29,6 @@ data AgdaInstallQ = AgdaInstallQ
   }
   deriving stock (Show, Eq, Ord, Generic)
   deriving anyclass (Hashable, Binary, NFData)
-
-type instance RuleResult AgdaInstallQ = FilePath
 
 -- | Default flags to use for Agda installation.
 --
@@ -46,9 +48,9 @@ defaultAgdaInstallFlags =
 -- | Oracle for installing a version of Agda.
 --
 -- The oracle returns the absolute path to the produced @agda@ binary.
-agdaInstallOracle :: Rules (AgdaInstallQ -> Action FilePath)
+agdaInstallOracle :: Rules ()
 agdaInstallOracle =
-  addOracle \AgdaInstallQ{..} -> do
+  addStoreOracle "_build/store" \AgdaInstallQ{..} -> do
     let repoDir = "_build/repos/agda"
     let workDir = gitRevWorktreePath repoDir agdaInstallRev
     needGitWorktree $ GitWorktreeQ
@@ -65,15 +67,17 @@ agdaInstallOracle =
     withAllCores \nCores -> do
       command_ [Cwd workDir] "cabal" (["build", "agda", "--project-dir=.", "--jobs=" ++ show nCores] ++ agdaInstallFlags)
       Stdout bin <- command [Cwd workDir] "cabal" (["list-bin", "agda", "--project-dir=.", "--jobs=" ++ show nCores] ++ agdaInstallFlags)
-      pure (takeWhile (not . isSpace) bin)
+      pure $ takeDirectory $ takeWhile (not . isSpace) bin
 
 -- | Require that a particular version of @agda@ is installed,
 -- and return the absolute path pointing to the executable.
 needAgdaInstall :: AgdaInstallQ -> Action FilePath
-needAgdaInstall = askOracle
+needAgdaInstall q = do
+  (store, _) <- askStoreOracle q
+  path <- liftIO $ Dir.makeAbsolute (store </> "agda")
+  pure path
 
 -- | Shake rules for installing @agda@.
 agdaInstallRules :: Rules ()
 agdaInstallRules = do
-  _ <- agdaInstallOracle
-  pure ()
+  agdaInstallOracle
