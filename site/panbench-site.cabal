@@ -44,6 +44,7 @@ executable site
         Panbench.Shake.Lang
         Panbench.Shake.Make
         Panbench.Shake.Matrix
+        Panbench.Shake.Opam
         Panbench.Shake.Store
         Panbench.Shake.Vega
     build-depends:
