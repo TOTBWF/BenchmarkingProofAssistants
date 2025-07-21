@@ -37,11 +37,13 @@ type instance RuleResult (StoreOracleQ q) = (FilePath, BS.ByteString)
 addStoreOracle
   :: forall q. (ShakeValue q, HasCallStack)
   => FilePath
-  -- ^ Store directory
+  -- ^ Store directory.
   -> (q -> Action FilePath)
   -- ^ Action to run to create the directory to copy to the store.
+  -> (q -> FilePath -> FilePath -> Action ())
+  -- ^ Action to run to copy files to the store.
   -> Rules ()
-addStoreOracle storeDir act = do
+addStoreOracle storeDir act install = do
   addBuiltinRule noLint identify run
   where
     identify :: StoreOracleQ q -> (FilePath, BS.ByteString) -> Maybe BS.ByteString
@@ -49,8 +51,9 @@ addStoreOracle storeDir act = do
 
     run :: StoreOracleQ q -> Maybe BS.ByteString -> RunMode -> Action (RunResult (FilePath, BS.ByteString))
     run (StoreOracleQ q) oldHash mode = do
+      cwd <- liftIO $ Dir.getCurrentDirectory
       let qHash = showHex $ SHA256.hashlazy $ encode q
-      let storePath = storeDir </> qHash
+      let storePath = cwd </> storeDir </> qHash
       (liftIO $ Dir.doesDirectoryExist storePath) >>= \case
         True -> do
           newHash <- liftIO $ directoryDigest storePath
@@ -61,7 +64,7 @@ addStoreOracle storeDir act = do
               pure $ RunResult ChangedRecomputeDiff newHash (storePath, newHash)
         False -> do
           outPath <- act q
-          copyDirectoryRecursive outPath storePath
+          install q outPath storePath
           newHash <- liftIO $ directoryDigest storePath
           case (oldHash, mode) of
             (Just oldHash, RunDependenciesSame) | oldHash == newHash ->
