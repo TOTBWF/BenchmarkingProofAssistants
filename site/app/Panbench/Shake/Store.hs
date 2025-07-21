@@ -3,14 +3,20 @@ module Panbench.Shake.Store
   ( -- $shakeStore
     addStoreOracle
   , askStoreOracle
+  -- $shakeDigest
+  , fileDigest
+  , directoryDigest
+  , showHex
   ) where
 
 import Control.Monad
+import Control.Monad.IO.Class
 
 import Crypto.Hash.SHA256 qualified as SHA256
 
 import Data.Binary
 import Data.ByteString qualified as BS
+import Data.ByteString.Lazy qualified as LBS
 
 import Development.Shake
 import Development.Shake.Classes
@@ -38,12 +44,10 @@ addStoreOracle
   :: forall q. (ShakeValue q, HasCallStack)
   => FilePath
   -- ^ Store directory.
-  -> (q -> Action FilePath)
-  -- ^ Action to run to create the directory to copy to the store.
-  -> (q -> FilePath -> FilePath -> Action ())
-  -- ^ Action to run to copy files to the store.
+  -> (q -> FilePath -> Action ())
+  -- ^ Action to populate the store.
   -> Rules ()
-addStoreOracle storeDir act install = do
+addStoreOracle storeDir act = do
   addBuiltinRule noLint identify run
   where
     identify :: StoreOracleQ q -> (FilePath, BS.ByteString) -> Maybe BS.ByteString
@@ -56,16 +60,15 @@ addStoreOracle storeDir act install = do
       let storePath = cwd </> storeDir </> qHash
       (liftIO $ Dir.doesDirectoryExist storePath) >>= \case
         True -> do
-          newHash <- liftIO $ directoryDigest storePath
+          newHash <- directoryDigest storePath
           case (oldHash, mode) of
             (Just oldHash, RunDependenciesSame) | oldHash == newHash ->
               pure $ RunResult ChangedNothing oldHash (storePath, oldHash)
             _ ->
               pure $ RunResult ChangedRecomputeDiff newHash (storePath, newHash)
         False -> do
-          outPath <- act q
-          install q outPath storePath
-          newHash <- liftIO $ directoryDigest storePath
+          act q storePath
+          newHash <- directoryDigest storePath
           case (oldHash, mode) of
             (Just oldHash, RunDependenciesSame) | oldHash == newHash ->
               pure $ RunResult ChangedRecomputeSame oldHash (storePath, oldHash)
@@ -79,12 +82,21 @@ askStoreOracle
   -> Action (FilePath, BS.ByteString)
 askStoreOracle = apply1 . StoreOracleQ
 
+-- * SHA-256 digests
+--
+-- $shakeDigest
+
+-- | Compute the SHA-256 hash of a file.
+fileDigest :: (MonadIO m) => FilePath -> m BS.ByteString
+fileDigest file =
+  liftIO $ SHA256.hashlazy <$> LBS.readFile file
+
 -- | Compute the SHA-256 hash of the contents of a directory.
 --
 -- Note that this only computes the digest of all of the *contents* of the
 -- files, and does not take directory structure into account.
-directoryDigest :: FilePath -> IO BS.ByteString
-directoryDigest dir = do
+directoryDigest :: (MonadIO m) => FilePath -> m BS.ByteString
+directoryDigest dir = liftIO do
   paths <- getDirectoryFilesRecursive dir
   SHA256.finalize <$> foldM (\ctx path -> SHA256.update ctx <$> BS.readFile path) SHA256.init paths
 

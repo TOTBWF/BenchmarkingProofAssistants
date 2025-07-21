@@ -47,23 +47,19 @@ defaultLeanMakeFlags = []
 -- The oracle returns the absolute path to the produced @lean@ binary.
 leanInstallOracle :: Rules ()
 leanInstallOracle =
-  addStoreOracle "_build/store" buildLean installLean
-  where
-    buildLean LeanInstallQ{..} = do
-      let repoDir = "_build/repos/lean"
-      let workDir = gitRevWorktreePath repoDir leanInstallRev
-      needGitWorktree $ GitWorktreeQ
-        { gitWorktreeUpstream = "https://github.com/leanprover/lean4.git"
-        , gitWorktreeRepo = repoDir
-        , gitWorktreeDir = workDir
-        , gitWorktreeRev = leanInstallRev
-        }
-      withAllCores \nCores -> do
-        command_ [Cwd workDir] "cmake" leanCMakeFlags
-        command_ [Cwd workDir] "make" (["stage3", "-C", "build/release", "-j" ++ show nCores] ++ leanMakeFlags)
-        pure (workDir </> "build/release/stage3/")
-
-    installLean _ buildPath storePath = copyDirectoryRecursive buildPath storePath
+  addStoreOracle "_build/store" \LeanInstallQ{..} storeDir -> do
+    let repoDir = "_build/repos/lean"
+    let workDir = gitRevWorktreePath repoDir leanInstallRev
+    needGitWorktree $ GitWorktreeQ
+      { gitWorktreeUpstream = "https://github.com/leanprover/lean4.git"
+      , gitWorktreeRepo = repoDir
+      , gitWorktreeDir = workDir
+      , gitWorktreeRev = leanInstallRev
+      }
+    withAllCores \nCores -> do
+      command_ [Cwd workDir] "cmake" leanCMakeFlags
+      command_ [Cwd workDir] "make" (["stage3", "-C", "build/release", "-j" ++ show nCores] ++ leanMakeFlags)
+    copyDirectoryRecursive (workDir </> "build" </> "release" </> "stage3") storeDir
 
 -- | Require that a particular version of @lean@ is installed,
 -- and return the absolute path pointing to the executable.

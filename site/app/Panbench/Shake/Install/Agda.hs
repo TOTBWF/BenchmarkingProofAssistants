@@ -51,27 +51,25 @@ defaultAgdaInstallFlags =
 -- The oracle returns the absolute path to the produced @agda@ binary.
 agdaInstallOracle :: Rules ()
 agdaInstallOracle =
-  addStoreOracle "_build/store" buildAgda installAgda
-  where
-    buildAgda AgdaInstallQ{..} = do
-      let repoDir = "_build/repos/agda"
-      let workDir = gitRevWorktreePath repoDir agdaInstallRev
-      needGitWorktree $ GitWorktreeQ
-        { gitWorktreeUpstream = "https://github.com/agda/agda.git"
-        , gitWorktreeRepo = repoDir
-        , gitWorktreeDir = workDir
-        , gitWorktreeRev = agdaInstallRev
-        }
-      -- [TODO: Reed M, 14/07/2025] We could be more reproducible by allowing the
-      -- user to specify a cabal lockfile.
-      --
-      -- Note that this also uses the system GHC: we could make this more configurable by
-      -- calling out to @ghcup@, but let's just get things working for now
-      withAllCores \nCores -> do
-        command_ [Cwd workDir] "cabal" (["build", "agda", "--project-dir=.", "--jobs=" ++ show nCores] ++ agdaInstallFlags)
-        Stdout bin <- command [Cwd workDir] "cabal" (["list-bin", "agda", "--project-dir=.", "--jobs=" ++ show nCores] ++ agdaInstallFlags)
-        pure $ takeDirectory $ takeWhile (not . isSpace) bin
-    installAgda _ buildPath storePath = copyDirectoryRecursive buildPath storePath
+  addStoreOracle "_build/store" \AgdaInstallQ{..} storeDir -> do
+    let repoDir = "_build/repos/agda"
+    let workDir = gitRevWorktreePath repoDir agdaInstallRev
+    needGitWorktree $ GitWorktreeQ
+      { gitWorktreeUpstream = "https://github.com/agda/agda.git"
+      , gitWorktreeRepo = repoDir
+      , gitWorktreeDir = workDir
+      , gitWorktreeRev = agdaInstallRev
+      }
+    -- [TODO: Reed M, 14/07/2025] We could be more reproducible by allowing the
+    -- user to specify a cabal lockfile.
+    --
+    -- Note that this also uses the system GHC: we could make this more configurable by
+    -- calling out to @ghcup@, but let's just get things working for now
+    withAllCores \nCores -> do
+      command_ [Cwd workDir] "cabal" (["build", "agda", "--project-dir=.", "--jobs=" ++ show nCores] ++ agdaInstallFlags)
+    Stdout listBinOut <- command [Cwd workDir] "cabal" (["list-bin", "agda", "--project-dir=."] ++ agdaInstallFlags)
+    let outDir = takeDirectory $ takeWhile (not . isSpace) listBinOut
+    copyDirectoryRecursive outDir storeDir
 
 -- | Require that a particular version of @agda@ is installed,
 -- and return the absolute path pointing to the executable.
