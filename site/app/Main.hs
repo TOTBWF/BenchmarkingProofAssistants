@@ -19,6 +19,7 @@ main = shakeArgs (shakeOptions {shakeFiles="_build"}) do
   benchmarkMatrixRules
   siteRules
 
+  makeRules
   gitRules
   envRules
   agdaInstallRules
