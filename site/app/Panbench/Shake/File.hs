@@ -2,6 +2,8 @@
 module Panbench.Shake.File
   ( -- $shakefileutil
     createDirectoryRecursive
+  , copyDirectoryRecursive
+  , getDirectoryFilesRecursive
   , writeBinaryFileChanged
   , writeTextFileChanged
     -- $shakeFileOracle
@@ -19,11 +21,13 @@ import Data.ByteString qualified as BS
 import Data.ByteString.Internal qualified as BS
 import Data.ByteString.Lazy qualified as LBS
 import Data.Coerce
+import Data.Foldable
 import Data.Maybe
 import Data.Text qualified as T
 import Data.Text.IO qualified as T
 import Data.Time.Clock.POSIX
 import Data.Time.Clock
+import Data.Traversable
 
 import Development.Shake
 import Development.Shake.Classes
@@ -53,6 +57,28 @@ createDirectoryRecursive :: (MonadIO m) => FilePath -> m ()
 createDirectoryRecursive dir = liftIO do
     x <- try @IOException $ Dir.doesDirectoryExist dir
     when (x /= Right True) $ Dir.createDirectoryIfMissing True dir
+
+-- | @copyDirectoryRecursive srcDir tgtDir@ will recursively copy all files in @srcDir@
+-- to @tgtDir@.
+copyDirectoryRecursive :: (HasCallStack, MonadIO m) => FilePath -> FilePath -> m ()
+copyDirectoryRecursive srcDir tgtDir = liftIO do
+  srcPaths <- Dir.listDirectory srcDir
+  for_ srcPaths \srcPath ->
+    Dir.doesDirectoryExist (srcDir </> srcPath) >>= \case
+      False -> do
+        createDirectoryRecursive tgtDir
+        Dir.copyFile (srcDir </> srcPath) (tgtDir </> srcPath)
+      True ->
+        copyDirectoryRecursive (srcDir </> srcPath) (tgtDir </> srcPath)
+
+-- | Get paths to every file in a directory.
+getDirectoryFilesRecursive :: (HasCallStack, MonadIO m) => FilePath -> m [FilePath]
+getDirectoryFilesRecursive dir = liftIO do
+  paths <- Dir.listDirectory dir
+  concat <$> for paths \path ->
+    Dir.doesDirectoryExist (dir </> path) >>= \case
+      False -> pure [dir </> path]
+      True -> getDirectoryFilesRecursive (dir </> path)
 
 -- | Remove a file.
 removeFile_ :: FilePath -> IO ()
