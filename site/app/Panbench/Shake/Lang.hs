@@ -39,12 +39,12 @@ import Panbench.Lang qualified as Lang
 findDefaultExecutable :: Lang -> Action FilePath
 findDefaultExecutable Agda =
   needAgdaInstall $ AgdaInstallQ
-    { agdaInstallRev = "release-2.8.0"
+    { agdaInstallRev = "v2.8.0"
     , agdaInstallFlags = defaultAgdaInstallFlags
     }
 findDefaultExecutable Lean =
   needLeanInstall $ LeanInstallQ
-    { leanInstallRev = "releases/v4.22.0"
+    { leanInstallRev = "v4.21.0"
     , leanCMakeFlags = defaultLeanCMakeFlags
     , leanMakeFlags = defaultLeanMakeFlags
     }
