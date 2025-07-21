@@ -25,6 +25,7 @@ import System.FilePath
 import Panbench.Shake.File
 import Panbench.Shake.Install.Agda
 import Panbench.Shake.Install.Lean
+import Panbench.Shake.Install.Idris
 import Panbench
 
 import Panbench.Lang qualified as Lang
@@ -47,6 +48,11 @@ findDefaultExecutable Lean =
     { leanInstallRev = "v4.21.0"
     , leanCMakeFlags = defaultLeanCMakeFlags
     , leanMakeFlags = defaultLeanMakeFlags
+    }
+findDefaultExecutable Idris =
+  needIdrisInstall $ IdrisInstallQ
+    { idrisInstallRev = "v0.7.0"
+    , idrisInstallScheme = Chez
     }
 findDefaultExecutable lang =
   liftIO (findExecutable (Lang.defaultExecutable lang)) >>= \case
