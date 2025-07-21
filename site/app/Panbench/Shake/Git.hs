@@ -99,7 +99,7 @@ gitWorktreeOracle =
     -- Worktrees store their .git in a file, not a directory.
     gitWorktreeExists gitWorktreeDir >>= \case
       True -> pure ()
-      False -> command [] "git" ["--git-dir", gitWorktreeRepo </> ".git", "worktree", "add", gitWorktreeDir, gitWorktreeRev]
+      False -> command [] "git" ["--git-dir", gitWorktreeRepo </> ".git", "worktree", "add", "-f", gitWorktreeDir, gitWorktreeRev]
 
 -- | Require that a git worktree for a repository exists.
 --
