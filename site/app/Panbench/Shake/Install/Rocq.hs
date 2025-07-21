@@ -58,9 +58,9 @@ rocqInstallOracle =
       command_ (opamEnvOpts opamEnv) "./configure" ["-prefix", storeDir]
       makeCommand_ (opamEnvOpts opamEnv) ["dunestrap"]
       -- We need to use @NJOBS@ over @-j@, see @dev/doc/build-system.dune.md@ for details.
-      -- Morevoer, note that -p implies --release!
+      -- Moreover, note that -p implies --release!
       withAllCores \nCores ->
-        duneCommand_ opamEnv [AddEnv "NJOBS" (show nCores)] ["build", "-p", "rocq-runtime", "rocq-core"]
+        duneCommand_ opamEnv [AddEnv "NJOBS" (show nCores)] ["build", "-p", "rocq-runtime,rocq-core"]
       duneCommand_ opamEnv [] ["install", "--prefix=" ++ storeDir, "rocq-runtime", "rocq-core"]
 
 needRocqInstall :: RocqInstallQ -> Action FilePath
