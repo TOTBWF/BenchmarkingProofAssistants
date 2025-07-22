@@ -42,12 +42,12 @@ type instance RuleResult (StoreOracleQ q) = (FilePath, BS.ByteString)
 
 addStoreOracle
   :: forall q. (ShakeValue q, HasCallStack)
-  => FilePath
-  -- ^ Store directory.
+  => String
+  -- ^ Name of the store entry.
   -> (q -> FilePath -> Action ())
   -- ^ Action to populate the store.
   -> Rules ()
-addStoreOracle storeDir act = do
+addStoreOracle name act = do
   addBuiltinRule noLint identify run
   where
     identify :: StoreOracleQ q -> (FilePath, BS.ByteString) -> Maybe BS.ByteString
@@ -56,8 +56,8 @@ addStoreOracle storeDir act = do
     run :: StoreOracleQ q -> Maybe BS.ByteString -> RunMode -> Action (RunResult (FilePath, BS.ByteString))
     run (StoreOracleQ q) oldHash mode = do
       cwd <- liftIO $ Dir.getCurrentDirectory
-      let qHash = showHex $ SHA256.hashlazy $ encode q
-      let storePath = cwd </> storeDir </> qHash
+      let storeKey = name <> "-" <> (showHex $ SHA256.hashlazy $ encode q)
+      let storePath = cwd </> "_build" </> "store" </> storeKey
       (liftIO $ Dir.doesDirectoryExist storePath) >>= \case
         True -> do
           newHash <- directoryDigest storePath

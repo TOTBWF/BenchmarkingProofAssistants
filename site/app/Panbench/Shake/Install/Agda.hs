@@ -81,6 +81,7 @@ needAgdaInstall q = do
 -- | Shake rules for installing @agda@.
 agdaInstallRules :: Rules ()
 agdaInstallRules = do
-  addStoreOracle "_build/store" agdaInstall
+  addStoreOracle "agda" agdaInstall
   phony "clean-agda" do
     removeFilesAfter "_build/repos" ["agda-*"]
+    removeFilesAfter "_build/store" ["agda-*"]

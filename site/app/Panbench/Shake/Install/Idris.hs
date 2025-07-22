@@ -73,6 +73,7 @@ needIdrisInstall q = do
 -- | Shake rules for installing @idris2@.
 idrisInstallRules :: Rules ()
 idrisInstallRules = do
-  addStoreOracle "_build/store" idrisInstall
+  addStoreOracle "idris" idrisInstall
   phony "clean-idris" do
     removeFilesAfter "_build/repos" ["idris2-*"]
+    removeFilesAfter "_build/store" ["idris2-*"]

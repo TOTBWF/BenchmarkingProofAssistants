@@ -70,6 +70,7 @@ needLeanInstall q = do
 -- | Shake rules for installing @lean@.
 leanInstallRules :: Rules ()
 leanInstallRules = do
-  addStoreOracle "_build/store" leanInstall
+  addStoreOracle "lean" leanInstall
   phony "clean-lean" do
     removeFilesAfter "_build/repos" ["lean-*"]
+    removeFilesAfter "_build/store" ["lean-*"]

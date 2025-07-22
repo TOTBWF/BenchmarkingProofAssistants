@@ -65,6 +65,7 @@ needRocqInstall q = do
 -- | Shake rules for installing @rocq@.
 rocqInstallRules :: Rules ()
 rocqInstallRules = do
-  addStoreOracle "_build/store" rocqInstallOracle
+  addStoreOracle "rocq" rocqInstallOracle
   phony "clean-rocq" do
     removeFilesAfter "_build/repos" ["rocq-*"]
+    removeFilesAfter "_build/store" ["rocq-*"]
