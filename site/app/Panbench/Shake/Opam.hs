@@ -45,8 +45,8 @@ import GHC.Generics
 import GHC.Stack
 
 import Panbench.Shake.AllCores
+import Panbench.Shake.Digest
 import Panbench.Shake.Env
-import Panbench.Shake.Store
 
 import System.Directory qualified as Dir
 import System.FilePath

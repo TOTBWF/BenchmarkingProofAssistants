@@ -14,7 +14,7 @@ import Development.Shake.Classes
 import GHC.Generics
 import GHC.Stack
 
-import Panbench.Shake.Store
+import Panbench.Shake.Digest
 
 import System.Directory qualified as Dir
 import System.Info qualified as Sys
