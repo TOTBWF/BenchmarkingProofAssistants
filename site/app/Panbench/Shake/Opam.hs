@@ -407,9 +407,9 @@ parseSExpr xs = do
 -- | Shake rules for @opam@.
 opamRules :: Rules ()
 opamRules = do
-  _ <- addOracle findOpamCommandOracle
-  _ <- addOracle opamEnvOracle
-  _ <- addOracle opamVersionOracle
-  _ <- addOracle opamInstallOracle
-  _ <- addOracle findDuneOracle
+  _ <- addOracleCache findOpamCommandOracle
+  _ <- addOracleCache findDuneOracle
+  _ <- addOracleCache opamEnvOracle
+  _ <- addOracleCache opamVersionOracle
+  _ <- addOracleCache opamInstallOracle
   pure ()
