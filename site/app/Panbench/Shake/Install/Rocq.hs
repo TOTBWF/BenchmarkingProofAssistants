@@ -38,7 +38,7 @@ defaultRocqOcamlCompiler = "ocaml-variants.4.14.2+options,ocaml-option-flambda"
 rocqInstallOracle :: RocqInstallQ -> FilePath -> Action ()
 rocqInstallOracle RocqInstallQ{..} storeDir = do
   let repoDir = "_build/repos/rocq"
-  let workDir = gitRevWorktreePath repoDir rocqInstallRev
+  let workDir = replaceDirectory storeDir "_build/repos"
   needGitWorktree $ GitWorktreeQ
     { gitWorktreeUpstream = "https://github.com/rocq-prover/rocq.git"
     , gitWorktreeRepo = repoDir

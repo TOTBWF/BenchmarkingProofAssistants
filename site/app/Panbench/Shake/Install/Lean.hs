@@ -48,7 +48,7 @@ defaultLeanMakeFlags = []
 leanInstall :: LeanInstallQ -> FilePath -> Action ()
 leanInstall LeanInstallQ{..} storeDir = do
   let repoDir = "_build/repos/lean"
-  let workDir = gitRevWorktreePath repoDir leanInstallRev
+  let workDir = replaceDirectory storeDir "_build/repos"
   needGitWorktree $ GitWorktreeQ
     { gitWorktreeUpstream = "https://github.com/leanprover/lean4.git"
     , gitWorktreeRepo = repoDir

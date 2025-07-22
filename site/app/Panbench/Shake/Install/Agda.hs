@@ -52,7 +52,7 @@ defaultAgdaInstallFlags =
 agdaInstall :: AgdaInstallQ -> FilePath -> Action ()
 agdaInstall AgdaInstallQ{..} storeDir = do
   let repoDir = "_build/repos/agda"
-  let workDir = gitRevWorktreePath repoDir agdaInstallRev
+  let workDir = replaceDirectory storeDir "_build/repos"
   needGitWorktree $ GitWorktreeQ
     { gitWorktreeUpstream = "https://github.com/agda/agda.git"
     , gitWorktreeRepo = repoDir

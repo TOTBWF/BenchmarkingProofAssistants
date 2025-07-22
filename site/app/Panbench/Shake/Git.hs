@@ -8,7 +8,6 @@ module Panbench.Shake.Git
   -- $gitWorktree
   , GitWorktreeQ(..)
   , needGitWorktree
-  , gitRevWorktreePath
   -- $gitRules
   , gitRules
   ) where
@@ -112,12 +111,6 @@ gitWorktreeOracle =
 -- This will clone the repository if required.
 needGitWorktree :: GitWorktreeQ -> Action ()
 needGitWorktree = askOracle
-
--- | Construct a path to checkout a @git@ worktree to
--- based off of a revision.
-gitRevWorktreePath :: FilePath -> String -> FilePath
-gitRevWorktreePath repo rev =
-  repo ++ "-" ++ map (\c -> if isPathSeparator c then '-' else c) rev
 
 -- | Shake rules for git
 --

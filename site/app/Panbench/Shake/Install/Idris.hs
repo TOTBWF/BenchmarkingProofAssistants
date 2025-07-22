@@ -44,7 +44,7 @@ type instance RuleResult IdrisInstallQ = FilePath
 idrisInstall :: IdrisInstallQ -> FilePath -> Action ()
 idrisInstall IdrisInstallQ{..} storeDir = do
   let repoDir = "_build/repos/idris2"
-  let workDir = gitRevWorktreePath repoDir idrisInstallRev
+  let workDir = replaceDirectory storeDir "_build/repos"
   needGitWorktree $ GitWorktreeQ
     { gitWorktreeUpstream = "https://github.com/idris-lang/Idris2.git"
     , gitWorktreeRepo = repoDir
