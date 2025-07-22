@@ -112,7 +112,7 @@ benchmarkMatrixRules =
       BenchmarkMatrixStats <$>
         for (zip generators modPaths) \(GenerateModule{..}, (dir, file)) -> do
           cleanBuildArtifacts generatorLang dir
-          bin <- findDefaultExecutable generatorLang
+          bin <- needLang generatorLang
           let args = langCheckDefaultArgs generatorLang file
           stat <- liftIO $ benchmark bin args [("HOME", dir)] dir
           pure (generatorLang, generatorSize, stat)

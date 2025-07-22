@@ -1,14 +1,15 @@
 -- | @shake@ build rules for @panbench@ modules.
 module Panbench.Shake.Lang
   ( -- $shakeLang
-    findDefaultExecutable
+    needLang
   , cleanBuildArtifacts
   , langCheckDefaultArgs
     -- $shakeGenerate
   , GenerateModule(..)
   , needModule
   , needModules
-  , generatorRules
+  -- $shakeLangRules
+  , langRules
   ) where
 
 import Data.Char
@@ -38,24 +39,24 @@ import Panbench.Lang qualified as Lang
 -- | Find the default executable for a given @'Lang'@.
 --
 -- Always returns an absolute path.
-findDefaultExecutable :: Lang -> Action FilePath
-findDefaultExecutable Agda =
+needLang :: Lang -> Action FilePath
+needLang Agda =
   needAgda AgdaQ
     { agdaInstallRev = "v2.8.0"
     , agdaInstallFlags = defaultAgdaInstallFlags
     }
-findDefaultExecutable Idris =
+needLang Idris =
   needIdris IdrisQ
     { idrisInstallRev = "v0.7.0"
     , idrisInstallScheme = Chez
     }
-findDefaultExecutable Lean =
+needLang Lean =
   needLean LeanQ
     { leanInstallRev = "v4.21.0"
     , leanCMakeFlags = defaultLeanCMakeFlags
     , leanMakeFlags = defaultLeanMakeFlags
     }
-findDefaultExecutable Rocq =
+needLang Rocq =
   needRocq RocqQ
     { rocqInstallRev = "V9.0.0"
     , rocqOcamlCompiler = defaultRocqOcamlCompiler
@@ -148,8 +149,8 @@ needModules gens = do
   return (fmap splitFileName paths)
 
 -- | Rules for module generation.
-generatorRules :: Rules ()
-generatorRules = do
+langRules :: Rules ()
+langRules = do
   needGenerator <- newCache compileGenerator
   addFileCacheOracle generatorOutputDir (\_ -> pure ()) \GenerateModule{..} -> do
     generatorBin <- needGenerator (GeneratorQ generatorName)

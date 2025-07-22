@@ -19,7 +19,7 @@ import Panbench.Shake.Opam
 
 main :: IO ()
 main = shakeArgs (shakeOptions {shakeFiles="_build"}) do
-  generatorRules
+  langRules
   benchmarkMatrixRules
   siteRules
 
