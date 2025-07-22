@@ -41,28 +41,27 @@ data SchemeCompiler
 type instance RuleResult IdrisInstallQ = FilePath
 
 -- | Oracle for installing a version of Idris 2.
-idrisInstallOracle :: Rules ()
-idrisInstallOracle =
-  addStoreOracle "_build/store" \IdrisInstallQ{..} storeDir -> do
-    let repoDir = "_build/repos/idris2"
-    let workDir = gitRevWorktreePath repoDir idrisInstallRev
-    needGitWorktree $ GitWorktreeQ
-      { gitWorktreeUpstream = "https://github.com/idris-lang/Idris2.git"
-      , gitWorktreeRepo = repoDir
-      , gitWorktreeDir = workDir
-      , gitWorktreeRev = idrisInstallRev
-      }
-    withAllCores \nCores -> do
-      -- [FIXME: Reed M, 21/07/2025] @make bootstrap@ removes compiled lib files,
-      -- which can cause some pointless rebuilds if we delete the store. We should
-      -- investigate if there is a way to fix this.
-      case idrisInstallScheme of
-        Chez -> do
-          makeCommand_ [Cwd workDir, AddEnv "SCHEME" "chez"] ["bootstrap", "-j" ++ show nCores]
-          makeCommand_ [Cwd workDir, AddEnv "PREFIX" storeDir] ["install", "-j" ++ show nCores]
-        Racket -> do
-          makeCommand_ [Cwd workDir] ["bootstrap-racket", "-j" ++ show nCores]
-          makeCommand_ [Cwd workDir, AddEnv "PREFIX" storeDir, AddEnv "IDRIS2_CG" "racket"] ["install", "-j" ++ show nCores]
+idrisInstall :: IdrisInstallQ -> FilePath -> Action ()
+idrisInstall IdrisInstallQ{..} storeDir = do
+  let repoDir = "_build/repos/idris2"
+  let workDir = gitRevWorktreePath repoDir idrisInstallRev
+  needGitWorktree $ GitWorktreeQ
+    { gitWorktreeUpstream = "https://github.com/idris-lang/Idris2.git"
+    , gitWorktreeRepo = repoDir
+    , gitWorktreeDir = workDir
+    , gitWorktreeRev = idrisInstallRev
+    }
+  withAllCores \nCores -> do
+    -- [FIXME: Reed M, 21/07/2025] @make bootstrap@ removes compiled lib files,
+    -- which can cause some pointless rebuilds if we delete the store. We should
+    -- investigate if there is a way to fix this.
+    case idrisInstallScheme of
+      Chez -> do
+        makeCommand_ [Cwd workDir, AddEnv "SCHEME" "chez"] ["bootstrap", "-j" ++ show nCores]
+        makeCommand_ [Cwd workDir, AddEnv "PREFIX" storeDir] ["install", "-j" ++ show nCores]
+      Racket -> do
+        makeCommand_ [Cwd workDir] ["bootstrap-racket", "-j" ++ show nCores]
+        makeCommand_ [Cwd workDir, AddEnv "PREFIX" storeDir, AddEnv "IDRIS2_CG" "racket"] ["install", "-j" ++ show nCores]
 
 -- | Require that a particular version of @idris2@ is installed,
 -- and return the absolute path pointing to the executable.
@@ -74,6 +73,6 @@ needIdrisInstall q = do
 -- | Shake rules for installing @idris2@.
 idrisInstallRules :: Rules ()
 idrisInstallRules = do
-  idrisInstallOracle
+  addStoreOracle "_build/store" idrisInstall
   phony "clean-idris" do
     removeFilesAfter "_build/repos" ["idris2-*"]
