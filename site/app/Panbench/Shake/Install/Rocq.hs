@@ -71,3 +71,5 @@ needRocqInstall q = do
 rocqInstallRules :: Rules ()
 rocqInstallRules = do
   rocqInstallOracle
+  phony "clean-rocq" do
+    removeFilesAfter "_build/repos" ["rocq-*"]

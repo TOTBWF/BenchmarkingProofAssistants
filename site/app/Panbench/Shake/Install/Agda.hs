@@ -83,3 +83,5 @@ needAgdaInstall q = do
 agdaInstallRules :: Rules ()
 agdaInstallRules = do
   agdaInstallOracle
+  phony "clean-agda" do
+    removeFilesAfter "_build/repos" ["agda-*"]

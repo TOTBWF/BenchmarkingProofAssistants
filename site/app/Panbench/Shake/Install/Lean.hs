@@ -72,3 +72,5 @@ needLeanInstall q = do
 leanInstallRules :: Rules ()
 leanInstallRules = do
   leanInstallOracle
+  phony "clean-lean" do
+    removeFilesAfter "_build/repos" ["lean-*"]
