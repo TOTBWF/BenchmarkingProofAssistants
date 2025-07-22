@@ -85,3 +85,4 @@ agdaInstallRules = do
   phony "clean-agda" do
     removeFilesAfter "_build/repos" ["agda-*"]
     removeFilesAfter "_build/store" ["agda-*"]
+    pruneGitWorktrees "_build/repos/agda"

@@ -69,3 +69,4 @@ rocqInstallRules = do
   phony "clean-rocq" do
     removeFilesAfter "_build/repos" ["rocq-*"]
     removeFilesAfter "_build/store" ["rocq-*"]
+    pruneGitWorktrees "_build/repos/rocq"

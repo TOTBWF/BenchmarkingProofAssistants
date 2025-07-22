@@ -8,6 +8,7 @@ module Panbench.Shake.Git
   -- $gitWorktree
   , GitWorktreeQ(..)
   , needGitWorktree
+  , pruneGitWorktrees
   -- $gitRules
   , gitRules
   ) where
@@ -111,6 +112,15 @@ gitWorktreeOracle =
 -- This will clone the repository if required.
 needGitWorktree :: GitWorktreeQ -> Action ()
 needGitWorktree = askOracle
+
+-- | Prune all worktrees in a git repo.
+--
+-- If the git repo does not exist, @'pruneGitWorktrees'@ is a no-op.
+pruneGitWorktrees :: FilePath -> Action ()
+pruneGitWorktrees repo =
+  gitRepoExists repo >>= \case
+    True -> command_ [] "git" ["--git-dir", repo </> ".git", "worktree", "prune"]
+    False -> pure ()
 
 -- | Shake rules for git
 --

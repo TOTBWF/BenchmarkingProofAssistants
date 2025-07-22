@@ -74,3 +74,4 @@ leanInstallRules = do
   phony "clean-lean" do
     removeFilesAfter "_build/repos" ["lean-*"]
     removeFilesAfter "_build/store" ["lean-*"]
+    pruneGitWorktrees "_build/repos/lean"

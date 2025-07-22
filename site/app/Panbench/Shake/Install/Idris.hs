@@ -77,3 +77,4 @@ idrisInstallRules = do
   phony "clean-idris" do
     removeFilesAfter "_build/repos" ["idris2-*"]
     removeFilesAfter "_build/store" ["idris2-*"]
+    pruneGitWorktrees "_build/repos/idris"
