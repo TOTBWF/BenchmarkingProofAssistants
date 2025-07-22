@@ -60,7 +60,7 @@ rocqInstallOracle RocqInstallQ{..} storeDir = do
 needRocqInstall :: RocqInstallQ -> Action FilePath
 needRocqInstall q = do
   (store, _) <- askStoreOracle q
-  pure (store </> "bin" </> "rocqchk")
+  pure (store </> "bin" </> "coqc")
 
 -- | Shake rules for installing @rocq@.
 rocqInstallRules :: Rules ()
