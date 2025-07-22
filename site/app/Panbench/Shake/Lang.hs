@@ -57,7 +57,6 @@ findDefaultExecutable Idris =
 findDefaultExecutable Rocq =
   needRocqInstall $ RocqInstallQ
     { rocqInstallRev = "V9.0.0"
-    , rocqInstallFlags = defaultRocqInstallFlags
     , rocqOcamlCompiler = defaultRocqOcamlCompiler
     , rocqStdlibVersion = "9.0.0"
     }

@@ -1,7 +1,6 @@
 -- | Shake rules for installing @rocq@.
 module Panbench.Shake.Install.Rocq
   ( RocqInstallQ(..)
-  , defaultRocqInstallFlags
   , defaultRocqOcamlCompiler
   , needRocqInstall
   , rocqInstallRules
@@ -13,20 +12,17 @@ import Development.Shake.Classes
 import GHC.Generics
 
 import Panbench.Shake.AllCores
-import Panbench.Shake.File
 import Panbench.Shake.Git
 import Panbench.Shake.Make
 import Panbench.Shake.Opam
 import Panbench.Shake.Store
 
-import System.Directory qualified as Dir
 import System.FilePath
 
 -- | Shake query for installing @rocq@.
 data RocqInstallQ = RocqInstallQ
   { rocqInstallRev :: String
   -- ^ Revision of @rocq@ to use.
-  , rocqInstallFlags :: [String]
   , rocqOcamlCompiler :: String
   -- ^ The @ocaml@ compiler package to use, along with
   -- any associated @ocaml-option-*@ option packages.
@@ -36,12 +32,11 @@ data RocqInstallQ = RocqInstallQ
   deriving stock (Show, Eq, Ord, Generic)
   deriving anyclass (Hashable, Binary, NFData)
 
-defaultRocqInstallFlags :: [String]
-defaultRocqInstallFlags = []
-
+-- | Default @ocaml@ compiler to use for @rocq@.
 defaultRocqOcamlCompiler :: String
 defaultRocqOcamlCompiler = "ocaml-variants.4.14.2+options,ocaml-option-flambda"
 
+-- | Oracle for installing a version of @rocq@.
 rocqInstallOracle :: Rules ()
 rocqInstallOracle =
   addStoreOracle "_build/store" \RocqInstallQ{..} storeDir -> do
@@ -60,14 +55,17 @@ rocqInstallOracle =
       -- We need to use @NJOBS@ over @-j@, see @dev/doc/build-system.dune.md@ for details.
       -- Moreover, note that -p implies --release!
       withAllCores \nCores ->
-        duneCommand_ opamEnv [AddEnv "NJOBS" (show nCores)] ["build", "-p", "rocq-runtime,rocq-core"]
-      duneCommand_ opamEnv [] ["install", "--prefix=" ++ storeDir, "rocq-runtime", "rocq-core"]
+        duneCommand_ opamEnv [AddEnv "NJOBS" (show nCores)] ["build", "-p", "rocq-runtime,coq-core,rocq-core,coq"]
+      duneCommand_ opamEnv [] ["install", "--prefix=" ++ storeDir, "rocq-runtime", "coq-core", "rocq-core", "coq"]
 
+-- | Require that a particular version of @rocq@ is installed,
+-- and return the absolute path pointing to the executable.
 needRocqInstall :: RocqInstallQ -> Action FilePath
 needRocqInstall q = do
   (store, _) <- askStoreOracle q
-  error "TODO"
+  pure (store </> "bin" </> "rocqchk")
 
+-- | Shake rules for installing @rocq@.
 rocqInstallRules :: Rules ()
 rocqInstallRules = do
   rocqInstallOracle
