@@ -39,11 +39,11 @@ executable site
         Panbench.Shake.File
         Panbench.Shake.Git
         Panbench.Shake.HTML
-        Panbench.Shake.Install.Agda
-        Panbench.Shake.Install.Idris
-        Panbench.Shake.Install.Lean
-        Panbench.Shake.Install.Rocq
         Panbench.Shake.Lang
+        Panbench.Shake.Lang.Agda
+        Panbench.Shake.Lang.Idris
+        Panbench.Shake.Lang.Lean
+        Panbench.Shake.Lang.Rocq
         Panbench.Shake.Make
         Panbench.Shake.Matrix
         Panbench.Shake.Opam

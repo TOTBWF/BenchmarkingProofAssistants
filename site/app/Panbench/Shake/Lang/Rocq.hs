@@ -1,5 +1,5 @@
--- | Shake rules for installing @rocq@.
-module Panbench.Shake.Install.Rocq
+-- | Shake rules for @rocq@.
+module Panbench.Shake.Lang.Rocq
   ( RocqInstallQ(..)
   , defaultRocqOcamlCompiler
   , needRocqInstall

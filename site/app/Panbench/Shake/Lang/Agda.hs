@@ -1,5 +1,5 @@
 -- | Helpers for installing @agda@.
-module Panbench.Shake.Install.Agda
+module Panbench.Shake.Lang.Agda
   ( AgdaInstallQ(..)
   , defaultAgdaInstallFlags
   , needAgdaInstall

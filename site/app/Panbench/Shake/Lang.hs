@@ -22,10 +22,10 @@ import Numeric.Natural
 import System.FilePath
 
 import Panbench.Shake.File
-import Panbench.Shake.Install.Agda
-import Panbench.Shake.Install.Lean
-import Panbench.Shake.Install.Idris
-import Panbench.Shake.Install.Rocq
+import Panbench.Shake.Lang.Agda
+import Panbench.Shake.Lang.Lean
+import Panbench.Shake.Lang.Idris
+import Panbench.Shake.Lang.Rocq
 import Panbench
 
 import Panbench.Lang qualified as Lang

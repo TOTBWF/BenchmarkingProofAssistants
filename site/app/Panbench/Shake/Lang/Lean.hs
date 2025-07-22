@@ -1,5 +1,5 @@
 -- | Helpers for installing @lean@.
-module Panbench.Shake.Install.Lean
+module Panbench.Shake.Lang.Lean
   ( LeanInstallQ(..)
   , defaultLeanCMakeFlags
   , defaultLeanMakeFlags

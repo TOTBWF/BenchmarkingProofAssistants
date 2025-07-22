@@ -8,11 +8,11 @@ import Panbench.Shake.Dev
 import Panbench.Shake.Env
 import Panbench.Shake.Git
 import Panbench.Shake.HTML
-import Panbench.Shake.Install.Agda
-import Panbench.Shake.Install.Idris
-import Panbench.Shake.Install.Lean
-import Panbench.Shake.Install.Rocq
 import Panbench.Shake.Lang
+import Panbench.Shake.Lang.Agda
+import Panbench.Shake.Lang.Idris
+import Panbench.Shake.Lang.Lean
+import Panbench.Shake.Lang.Rocq
 import Panbench.Shake.Make
 import Panbench.Shake.Matrix
 import Panbench.Shake.Opam

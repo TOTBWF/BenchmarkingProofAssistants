@@ -1,5 +1,5 @@
 -- | Shake rules for compiling a particular version of @idris2@.
-module Panbench.Shake.Install.Idris
+module Panbench.Shake.Lang.Idris
   ( IdrisInstallQ(..)
   , SchemeCompiler(..)
   , needIdrisInstall
