@@ -176,15 +176,25 @@ opamEnvOracle (OpamEnvQ switch@(LocalSwitch dir)) = do
 --
 -- $shakeOpamSwitch
 
+-- | An opam switch.
 data OpamSwitch
   = LocalSwitch FilePath
+  -- ^ A local opam switch, along with its path.
   | NamedSwitch String
+  -- ^ A named opam switch.
   deriving stock (Show, Eq, Ord, Generic)
   deriving anyclass (Hashable, Binary, NFData)
 
 -- | Require that an opam switch be created if it does not already exist.
-needOpamSwitch :: OpamSwitch -> [String] -> Action ()
+needOpamSwitch
+  :: OpamSwitch
+  -- ^ The @opam@ switch.
+  -> [String]
+  -- ^ Options used to create the switch if it doesn't already exist.
+  -> Action ()
 needOpamSwitch (LocalSwitch switchDir) args = do
+  -- [FIXME: Reed M, 21/07/2025] This doesn't trigger a rebuild when the options change.
+  -- This can be fixed by using an oracle.
   absSwitchDir <- liftIO $ Dir.makeAbsolute switchDir
   Stdout switches <- opamCommand [] ["switch", "list", "--short"]
   when (absSwitchDir `notElem` (lines switches)) do
