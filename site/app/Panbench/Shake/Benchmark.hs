@@ -73,14 +73,14 @@ foreign import capi "benchmark.h c_benchmark" c_benchmark :: CString -> Ptr CStr
 -- an @IOError@ is thrown.
 --
 -- For documentation on benchmarking statistics gathered, see @BenchmarkExecStats@.
-benchmark :: FilePath -> [String] -> [String] -> FilePath -> IO BenchmarkExecStats
+benchmark :: FilePath -> [String] -> [(String, String)] -> FilePath -> IO BenchmarkExecStats
 benchmark path args env workingDir =
   withCurrentDirectory workingDir do
     p <- malloc
     r <-
       withCString path \cpath ->
       withMany withCString args \cargs ->
-      withMany withCString env \cenv ->
+      withMany withCString (fmap (\(var, val) -> var <> "=" <> val) env) \cenv ->
       withArray0 nullPtr (cpath:cargs) \cargv ->
       withArray0 nullPtr cenv \cenvp ->
         c_benchmark cpath cargv cenvp p

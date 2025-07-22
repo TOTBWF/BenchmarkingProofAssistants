@@ -115,7 +115,7 @@ benchmarkMatrixRules =
           cleanBuildArtifacts generatorLang dir
           bin <- findDefaultExecutable generatorLang
           let args = Lang.defaultArgs generatorLang file
-          stat <- liftIO $ benchmark bin args [] dir
+          stat <- liftIO $ benchmark bin args [("HOME", dir)] dir
           pure (generatorLang, generatorSize, stat)
     pure (stats, JSON.encode stats)
 
