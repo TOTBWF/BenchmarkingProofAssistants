@@ -26,8 +26,6 @@ data RocqInstallQ = RocqInstallQ
   , rocqOcamlCompiler :: String
   -- ^ The @ocaml@ compiler package to use, along with
   -- any associated @ocaml-option-*@ option packages.
-  , rocqStdlibVersion :: String
-  -- ^ Version of the @rocq-stdlib@ package to install from @opam@.
   }
   deriving stock (Show, Eq, Ord, Generic)
   deriving anyclass (Hashable, Binary, NFData)

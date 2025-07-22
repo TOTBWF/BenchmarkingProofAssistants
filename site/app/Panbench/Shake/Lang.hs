@@ -58,7 +58,6 @@ findDefaultExecutable Rocq =
   needRocqInstall $ RocqInstallQ
     { rocqInstallRev = "V9.0.0"
     , rocqOcamlCompiler = defaultRocqOcamlCompiler
-    , rocqStdlibVersion = "9.0.0"
     }
 
 -- | Remove all build artifacts for a @'Lang'@ in a directory.
