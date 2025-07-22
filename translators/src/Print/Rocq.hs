@@ -35,7 +35,6 @@ instance TypeAnn (Doc ann) where
   teleCell Explicit trm typ = parens $ trm <+> typesep <+> typ
   teleCell Implicit trm typ = brackets $ trm <+> typesep <+> typ
 
-
 -- FIXME: end '.' should not be hard-coded
 printImport :: Import -> Doc ann
 printImport (ImportLib VecMod) = import_ <+> "Coq.Vectors.Vector." <> hardline <>
