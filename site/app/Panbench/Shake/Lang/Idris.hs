@@ -1,9 +1,14 @@
 -- | Shake rules for compiling a particular version of @idris2@.
 module Panbench.Shake.Lang.Idris
-  ( IdrisInstallQ(..)
+  ( -- $shakeIdrisInstall
+    IdrisQ(..)
   , SchemeCompiler(..)
-  , needIdrisInstall
-  , idrisInstallRules
+  , needIdris
+  -- $shakeIdrisCommands
+  , idrisCheckDefaultArgs
+  , idrisDoctor
+  -- $shakeIdrisRules
+  , idrisRules
   ) where
 
 import Development.Shake
@@ -19,8 +24,12 @@ import Panbench.Shake.Store
 import System.Directory qualified as Dir
 import System.FilePath
 
+-- * Idris 2 Installation
+--
+-- $shakeIdrisInstall
+
 -- | Query for installing a version of @idris2@.
-data IdrisInstallQ = IdrisInstallQ
+data IdrisQ = IdrisQ
   { idrisInstallRev :: String
   -- ^ Revision of @idris2@ to install.
   , idrisInstallScheme :: SchemeCompiler
@@ -38,11 +47,11 @@ data SchemeCompiler
   deriving stock (Show, Eq, Ord, Generic)
   deriving anyclass (Hashable, Binary, NFData)
 
-type instance RuleResult IdrisInstallQ = FilePath
+type instance RuleResult IdrisQ = FilePath
 
 -- | Oracle for installing a version of Idris 2.
-idrisInstall :: IdrisInstallQ -> FilePath -> Action ()
-idrisInstall IdrisInstallQ{..} storeDir = do
+idrisInstall :: IdrisQ -> FilePath -> Action ()
+idrisInstall IdrisQ{..} storeDir = do
   let repoDir = "_build/repos/idris2"
   let workDir = replaceDirectory storeDir "_build/repos"
   needGitWorktree $ GitWorktreeQ
@@ -65,14 +74,37 @@ idrisInstall IdrisInstallQ{..} storeDir = do
 
 -- | Require that a particular version of @idris2@ is installed,
 -- and return the absolute path pointing to the executable.
-needIdrisInstall :: IdrisInstallQ -> Action FilePath
-needIdrisInstall q = do
+needIdris :: IdrisQ -> Action FilePath
+needIdris q = do
   (store, _) <- askStoreOracle q
   liftIO $ Dir.makeAbsolute (store </> "bin" </> "idris2")
 
+-- * Running Idris
+--
+-- $shakeIdrisCommands
+
+-- | Default arguments to pass to @idris2@ to check a file.
+idrisCheckDefaultArgs :: FilePath -> [String]
+idrisCheckDefaultArgs file = ["--check", file]
+
+-- | Check that an @idris@ install is functioning by compiling an empty file.
+idrisDoctor :: IdrisQ -> Action ()
+idrisDoctor idrisQ = do
+  idris <- needIdris idrisQ
+  withTempDir \dir -> do
+    let testFile = dir </> "Test.idr"
+    liftIO $ writeFile testFile $ unlines
+      [ "module Main"
+      , ""
+      , "main : IO ()"
+      , "main = putStrLn \"\""
+      ]
+    command_ [Cwd dir] idris (idrisCheckDefaultArgs testFile)
+
+
 -- | Shake rules for installing @idris2@.
-idrisInstallRules :: Rules ()
-idrisInstallRules = do
+idrisRules :: Rules ()
+idrisRules = do
   addStoreOracle "idris" idrisInstall
   phony "clean-idris" do
     removeFilesAfter "_build/repos" ["idris2-*"]

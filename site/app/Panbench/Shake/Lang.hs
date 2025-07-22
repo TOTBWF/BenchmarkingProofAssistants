@@ -3,6 +3,7 @@ module Panbench.Shake.Lang
   ( -- $shakeLang
     findDefaultExecutable
   , cleanBuildArtifacts
+  , langCheckDefaultArgs
     -- $shakeGenerate
   , GenerateModule(..)
   , needModule
@@ -39,23 +40,23 @@ import Panbench.Lang qualified as Lang
 -- Always returns an absolute path.
 findDefaultExecutable :: Lang -> Action FilePath
 findDefaultExecutable Agda =
-  needAgdaInstall $ AgdaInstallQ
+  needAgda AgdaQ
     { agdaInstallRev = "v2.8.0"
     , agdaInstallFlags = defaultAgdaInstallFlags
     }
+findDefaultExecutable Idris =
+  needIdris IdrisQ
+    { idrisInstallRev = "v0.7.0"
+    , idrisInstallScheme = Chez
+    }
 findDefaultExecutable Lean =
-  needLeanInstall $ LeanInstallQ
+  needLean LeanQ
     { leanInstallRev = "v4.21.0"
     , leanCMakeFlags = defaultLeanCMakeFlags
     , leanMakeFlags = defaultLeanMakeFlags
     }
-findDefaultExecutable Idris =
-  needIdrisInstall $ IdrisInstallQ
-    { idrisInstallRev = "v0.7.0"
-    , idrisInstallScheme = Chez
-    }
 findDefaultExecutable Rocq =
-  needRocqInstall $ RocqInstallQ
+  needRocq RocqQ
     { rocqInstallRev = "V9.0.0"
     , rocqOcamlCompiler = defaultRocqOcamlCompiler
     }
@@ -64,6 +65,13 @@ findDefaultExecutable Rocq =
 cleanBuildArtifacts :: Lang -> FilePath -> Action ()
 cleanBuildArtifacts lang dir =
   removeFilesAfter dir (Lang.buildArtifacts lang)
+
+-- | Default arguments for a @'Lang'@ to typecheck a file.
+langCheckDefaultArgs :: Lang -> FilePath -> [String]
+langCheckDefaultArgs Agda = agdaCheckDefaultArgs
+langCheckDefaultArgs Idris = idrisCheckDefaultArgs
+langCheckDefaultArgs Lean = leanCheckDefaultArgs
+langCheckDefaultArgs Rocq = rocqCheckDefaultArgs
 
 -- * Shake rules for compiling generators
 

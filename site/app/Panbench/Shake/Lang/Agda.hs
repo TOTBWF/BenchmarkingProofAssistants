@@ -1,9 +1,14 @@
 -- | Helpers for installing @agda@.
 module Panbench.Shake.Lang.Agda
-  ( AgdaInstallQ(..)
+  ( -- $shakeAgdaInstall
+    AgdaQ(..)
   , defaultAgdaInstallFlags
-  , needAgdaInstall
-  , agdaInstallRules
+  , needAgda
+  -- $shakeAgdaCommands
+  , agdaCheckDefaultArgs
+  , agdaDoctor
+  -- $shakeAgdaRules
+  , agdaRules
   ) where
 
 import Data.Char
@@ -21,8 +26,12 @@ import Panbench.Shake.Store
 import System.Directory qualified as Dir
 import System.FilePath
 
+-- * Agda Installation
+--
+-- $shakeAgdaInstall
+
 -- | Query for installing a version of @agda@.
-data AgdaInstallQ = AgdaInstallQ
+data AgdaQ = AgdaQ
   { agdaInstallRev :: String
   -- ^ Revision of Agda to install.
   , agdaInstallFlags :: [String]
@@ -49,8 +58,8 @@ defaultAgdaInstallFlags =
 -- | Oracle for installing a version of Agda.
 --
 -- The oracle returns the absolute path to the produced @agda@ binary.
-agdaInstall :: AgdaInstallQ -> FilePath -> Action ()
-agdaInstall AgdaInstallQ{..} storeDir = do
+agdaInstall :: AgdaQ -> FilePath -> Action ()
+agdaInstall AgdaQ{..} storeDir = do
   let repoDir = "_build/repos/agda"
   let workDir = replaceDirectory storeDir "_build/repos"
   needGitWorktree $ GitWorktreeQ
@@ -72,15 +81,36 @@ agdaInstall AgdaInstallQ{..} storeDir = do
 
 -- | Require that a particular version of @agda@ is installed,
 -- and return the absolute path pointing to the executable.
-needAgdaInstall :: AgdaInstallQ -> Action FilePath
-needAgdaInstall q = do
+needAgda :: AgdaQ -> Action FilePath
+needAgda q = do
   (store, _) <- askStoreOracle q
   path <- liftIO $ Dir.makeAbsolute (store </> "agda")
   pure path
 
+-- * Running Agda
+--
+-- $shakeAgdaCommands
+
+-- | Default arguments for @agda@ to check a file.
+agdaCheckDefaultArgs :: FilePath -> [String]
+agdaCheckDefaultArgs file = ["+RTS", "-M3.0G", "-RTS", file]
+
+-- | Check that an @agda@ install is functioning by compiling an empty file.
+agdaDoctor :: AgdaQ -> Action ()
+agdaDoctor agdaQ = do
+  agda <- needAgda agdaQ
+  withTempDir \dir -> do
+    let testFile = dir </> "Test.agda"
+    liftIO $ writeFile testFile "module Test where"
+    command_ [Cwd dir] agda (agdaCheckDefaultArgs testFile)
+
+-- * Shake Rules for Agda
+--
+-- $shakeAgdaRules
+
 -- | Shake rules for installing @agda@.
-agdaInstallRules :: Rules ()
-agdaInstallRules = do
+agdaRules :: Rules ()
+agdaRules = do
   addStoreOracle "agda" agdaInstall
   phony "clean-agda" do
     removeFilesAfter "_build/repos" ["agda-*"]

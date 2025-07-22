@@ -1,10 +1,15 @@
 -- | Helpers for installing @lean@.
 module Panbench.Shake.Lang.Lean
-  ( LeanInstallQ(..)
+  ( -- $shakeLeanInstall
+    LeanQ(..)
   , defaultLeanCMakeFlags
   , defaultLeanMakeFlags
-  , needLeanInstall
-  , leanInstallRules
+  , needLean
+  -- $shakeLeanCommands
+  , leanCheckDefaultArgs
+  , leanDoctor
+  -- $shakeLeanRules
+  , leanRules
   ) where
 
 import Development.Shake
@@ -20,8 +25,12 @@ import Panbench.Shake.Store
 import System.Directory qualified as Dir
 import System.FilePath
 
+-- * Lean Installation
+--
+-- $shakeLeanInstall
+
 -- | Query for installing a version of @lean@.
-data LeanInstallQ = LeanInstallQ
+data LeanQ = LeanQ
   { leanInstallRev :: String
   -- ^ Revision of Lean to install.
   , leanCMakeFlags :: [String]
@@ -32,7 +41,7 @@ data LeanInstallQ = LeanInstallQ
   deriving stock (Show, Eq, Ord, Generic)
   deriving anyclass (Hashable, Binary, NFData)
 
-type instance RuleResult LeanInstallQ = FilePath
+type instance RuleResult LeanQ = FilePath
 
 -- | Default flags to pass to @cmake@ when compiling lean.
 defaultLeanCMakeFlags :: [String]
@@ -45,8 +54,8 @@ defaultLeanMakeFlags = []
 -- | Oracle for installing a version of Lean 4.
 --
 -- The oracle returns the absolute path to the produced @lean@ binary.
-leanInstall :: LeanInstallQ -> FilePath -> Action ()
-leanInstall LeanInstallQ{..} storeDir = do
+leanInstall :: LeanQ -> FilePath -> Action ()
+leanInstall LeanQ{..} storeDir = do
   let repoDir = "_build/repos/lean"
   let workDir = replaceDirectory storeDir "_build/repos"
   needGitWorktree $ GitWorktreeQ
@@ -62,14 +71,35 @@ leanInstall LeanInstallQ{..} storeDir = do
 
 -- | Require that a particular version of @lean@ is installed,
 -- and return the absolute path pointing to the executable.
-needLeanInstall :: LeanInstallQ -> Action FilePath
-needLeanInstall q = do
+needLean :: LeanQ -> Action FilePath
+needLean q = do
   (store, _) <- askStoreOracle q
   liftIO $ Dir.makeAbsolute (store </> "bin" </> "lean")
 
+-- * Running Lean
+--
+-- $shakeLeanCommands
+
+-- | Default arguments for @lean@ to check a file.
+leanCheckDefaultArgs :: FilePath -> [String]
+leanCheckDefaultArgs file = ["-D", "maxRecDepth=2000", "-D", "maxHeartbeats=0", file]
+
+-- | Check that a @lean@ install is functioning by compiling an empty file.
+leanDoctor :: LeanQ -> Action ()
+leanDoctor leanQ = do
+  lean <- needLean leanQ
+  withTempDir \dir -> do
+    let testFile = dir </> "Test.lean"
+    liftIO $ writeFile testFile ""
+    command_ [Cwd dir] lean (leanCheckDefaultArgs testFile)
+
+-- * Shake rules for Lean
+--
+-- $shakeLeanRules
+
 -- | Shake rules for installing @lean@.
-leanInstallRules :: Rules ()
-leanInstallRules = do
+leanRules :: Rules ()
+leanRules = do
   addStoreOracle "lean" leanInstall
   phony "clean-lean" do
     removeFilesAfter "_build/repos" ["lean-*"]

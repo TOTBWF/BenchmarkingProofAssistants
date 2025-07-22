@@ -26,7 +26,6 @@ import System.FilePath
 
 import Panbench.Shake.Benchmark
 import Panbench.Lang (Lang)
-import Panbench.Lang qualified as Lang
 import Panbench.Shake.Lang
 import Panbench.Shake.File
 
@@ -114,7 +113,7 @@ benchmarkMatrixRules =
         for (zip generators modPaths) \(GenerateModule{..}, (dir, file)) -> do
           cleanBuildArtifacts generatorLang dir
           bin <- findDefaultExecutable generatorLang
-          let args = Lang.defaultArgs generatorLang file
+          let args = langCheckDefaultArgs generatorLang file
           stat <- liftIO $ benchmark bin args [("HOME", dir)] dir
           pure (generatorLang, generatorSize, stat)
     pure (stats, JSON.encode stats)

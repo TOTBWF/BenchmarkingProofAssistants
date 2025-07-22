@@ -1,9 +1,14 @@
 -- | Shake rules for @rocq@.
 module Panbench.Shake.Lang.Rocq
-  ( RocqInstallQ(..)
+  ( -- $shakeRocqInstall
+    RocqQ(..)
   , defaultRocqOcamlCompiler
-  , needRocqInstall
-  , rocqInstallRules
+  , needRocq
+  -- $shakeRocqCommands
+  , rocqCheckDefaultArgs
+  , rocqDoctor
+  -- $shakeRocqRules
+  , rocqRules
   ) where
 
 import Development.Shake
@@ -19,8 +24,12 @@ import Panbench.Shake.Store
 
 import System.FilePath
 
+-- * Rocq Installation
+--
+-- $shakeRocqInstall
+
 -- | Shake query for installing @rocq@.
-data RocqInstallQ = RocqInstallQ
+data RocqQ = RocqQ
   { rocqInstallRev :: String
   -- ^ Revision of @rocq@ to use.
   , rocqOcamlCompiler :: String
@@ -35,8 +44,8 @@ defaultRocqOcamlCompiler :: String
 defaultRocqOcamlCompiler = "ocaml-variants.4.14.2+options,ocaml-option-flambda"
 
 -- | Oracle for installing a version of @rocq@.
-rocqInstallOracle :: RocqInstallQ -> FilePath -> Action ()
-rocqInstallOracle RocqInstallQ{..} storeDir = do
+rocqInstallOracle :: RocqQ -> FilePath -> Action ()
+rocqInstallOracle RocqQ{..} storeDir = do
   let repoDir = "_build/repos/rocq"
   let workDir = replaceDirectory storeDir "_build/repos"
   needGitWorktree $ GitWorktreeQ
@@ -57,14 +66,39 @@ rocqInstallOracle RocqInstallQ{..} storeDir = do
 
 -- | Require that a particular version of @rocq@ is installed,
 -- and return the absolute path pointing to the executable.
-needRocqInstall :: RocqInstallQ -> Action FilePath
-needRocqInstall q = do
+needRocq :: RocqQ -> Action FilePath
+needRocq q = do
   (store, _) <- askStoreOracle q
   pure (store </> "bin" </> "coqc")
 
+-- * Running Rocq
+--
+-- $shakeRocqCommands
+
+-- | Default arguments to pass to @rocq@ to typecheck a file.
+rocqCheckDefaultArgs :: FilePath -> [String]
+rocqCheckDefaultArgs file = [file]
+
+-- | Check that a @rocq@ installation is working by compiling an empty file.
+rocqDoctor :: RocqQ -> Action ()
+rocqDoctor rocqQ = do
+  rocq <- needRocq rocqQ
+  withTempDir \dir -> do
+    let testFile = dir </> "Test.v"
+    liftIO $ writeFile testFile $ unlines
+      [ "Module Test."
+      , "End Test."
+      ]
+    command_ [Cwd dir] rocq (rocqCheckDefaultArgs testFile)
+
+
+-- * Shake Rules for Rocq
+--
+-- $shakeRocqRules
+
 -- | Shake rules for installing @rocq@.
-rocqInstallRules :: Rules ()
-rocqInstallRules = do
+rocqRules :: Rules ()
+rocqRules = do
   addStoreOracle "rocq" rocqInstallOracle
   phony "clean-rocq" do
     removeFilesAfter "_build/repos" ["rocq-*"]
