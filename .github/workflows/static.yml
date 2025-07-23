@@ -25,6 +25,9 @@ env:
   os: ubuntu-latest
   ghc-version: '9.4.8'
   cabal-version: '3.12.1.0'
+  # Note that this version of ocaml is only used to be able to compile
+  # other versions of ocaml when we set up local switches.
+  ocaml-version: 'ocaml-variants.4.14.2+options,ocaml-option-flambda'
 
 jobs:
   # Single deploy job since we're just deploying
@@ -64,6 +67,15 @@ jobs:
           ghc-version: ${{ env.ghc-version }}
           cabal-version: ${{ env.cabal-version }}
 
+      - name: Install OCaml ${{ env.ocaml-version }} 🐫
+        uses: actions/ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: ${{ env.ocaml-version }}
+
+      - name: Install Chez 🏸
+        run: |
+          sudo apt-get install -y chezscheme
+
       - name: Cabal configure 🧙
         run: |
           cabal configure --enable-tests --enable-benchmarks --disable-documentation
@@ -83,8 +95,25 @@ jobs:
         if: steps.cabal-cache.outputs.cache-hit != 'true'
         run: cabal build all --only-dependencies
 
+      - name: Restore build store cache ♻️
+        uses: actions/cache/restore@v4
+        id: store-cache
+        env:
+          key: ${{ env.os }}-ghc-${{ env.ghc-version }}-cabal-${{ env.cabal-version }}-ocaml-${{ env.ocaml-version }}
+        with:
+          path: '_build/store'
+          key: ${{ env.key }}-plan-${{ hashFiles('**/plan.json') }}
+          restore-keys: ${{ env.key }}-
+
       - name: Build 🛠️
         run: cabal run panbench-site -- _build/site/index.html
+
+      - name: Cache store 💾
+        uses: actions/cache/save@v4
+        if: steps.store-cache.outputs.cache-hit != 'true'
+        with:
+          path: '_build/store'
+          key: ${{ steps.store-cache.outputs.cache-primary-key }}
 
       - name: Upload artifact ⬆️
         uses: actions/upload-pages-artifact@v3

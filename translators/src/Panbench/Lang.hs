@@ -7,8 +7,6 @@ module Panbench.Lang
   , render
   , name
   , fileExt
-  , defaultArgs
-  , defaultExecutable
   , buildArtifacts
   , allLangs
   ) where
@@ -85,26 +83,6 @@ fileExt Agda = ".agda"
 fileExt Idris = ".idr"
 fileExt Lean = ".lean"
 fileExt Rocq = ".v"
-
--- | Get the default flags to use for a @'Lang'@ when
--- trying to typecheck a file.
-defaultArgs
-  :: Lang
-  -- ^ The language.
-  -> FilePath
-  -- ^ The file we are trying to typecheck.
-  -> [String]
-defaultArgs Agda file = ["+RTS", "-M3.0G", "-RTS", file]
-defaultArgs Idris file = ["--check", file]
-defaultArgs Lean file = ["-D", "maxRecDepth=2000", "-D", "maxHeartbeats=0", file]
-defaultArgs Rocq file = [file]
-
--- | Get the name of the binary for a language.
-defaultExecutable :: Lang -> String
-defaultExecutable Agda = "agda"
-defaultExecutable Idris = "idris2"
-defaultExecutable Lean = "lean"
-defaultExecutable Rocq = "coqc"
 
 -- | Build artifacts produced by a given @'Lang'@.
 buildArtifacts :: Lang -> [FilePath]

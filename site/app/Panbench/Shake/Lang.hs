@@ -1,13 +1,15 @@
 -- | @shake@ build rules for @panbench@ modules.
 module Panbench.Shake.Lang
   ( -- $shakeLang
-    findDefaultExecutable
+    needLang
   , cleanBuildArtifacts
+  , langCheckDefaultArgs
     -- $shakeGenerate
   , GenerateModule(..)
   , needModule
   , needModules
-  , generatorRules
+  -- $shakeLangRules
+  , langRules
   ) where
 
 import Data.Char
@@ -19,10 +21,13 @@ import GHC.Generics
 
 import Numeric.Natural
 
-import System.Directory (findExecutable)
 import System.FilePath
 
 import Panbench.Shake.File
+import Panbench.Shake.Lang.Agda
+import Panbench.Shake.Lang.Lean
+import Panbench.Shake.Lang.Idris
+import Panbench.Shake.Lang.Rocq
 import Panbench
 
 import Panbench.Lang qualified as Lang
@@ -34,20 +39,40 @@ import Panbench.Lang qualified as Lang
 -- | Find the default executable for a given @'Lang'@.
 --
 -- Always returns an absolute path.
-findDefaultExecutable :: Lang -> Action FilePath
-findDefaultExecutable lang =
-  liftIO (findExecutable (Lang.defaultExecutable lang)) >>= \case
-    Just bin -> pure bin
-    Nothing ->
-      fail $ unlines $
-      [ "Could not find executable for " <> show lang <> " in the path."
-      , "Perhaps it is not installed?"
-      ]
+needLang :: Lang -> Action FilePath
+needLang Agda =
+  needAgda AgdaQ
+    { agdaInstallRev = "v2.8.0"
+    , agdaInstallFlags = defaultAgdaInstallFlags
+    }
+needLang Idris =
+  needIdris IdrisQ
+    { idrisInstallRev = "v0.7.0"
+    , idrisInstallScheme = Chez
+    }
+needLang Lean =
+  needLean LeanQ
+    { leanInstallRev = "v4.21.0"
+    , leanCMakeFlags = defaultLeanCMakeFlags
+    , leanMakeFlags = defaultLeanMakeFlags
+    }
+needLang Rocq =
+  needRocq RocqQ
+    { rocqInstallRev = "V9.0.0"
+    , rocqOcamlCompiler = defaultRocqOcamlCompiler
+    }
 
 -- | Remove all build artifacts for a @'Lang'@ in a directory.
 cleanBuildArtifacts :: Lang -> FilePath -> Action ()
 cleanBuildArtifacts lang dir =
   removeFilesAfter dir (Lang.buildArtifacts lang)
+
+-- | Default arguments for a @'Lang'@ to typecheck a file.
+langCheckDefaultArgs :: Lang -> FilePath -> [String]
+langCheckDefaultArgs Agda = agdaCheckDefaultArgs
+langCheckDefaultArgs Idris = idrisCheckDefaultArgs
+langCheckDefaultArgs Lean = leanCheckDefaultArgs
+langCheckDefaultArgs Rocq = rocqCheckDefaultArgs
 
 -- * Shake rules for compiling generators
 
@@ -124,8 +149,8 @@ needModules gens = do
   return (fmap splitFileName paths)
 
 -- | Rules for module generation.
-generatorRules :: Rules ()
-generatorRules = do
+langRules :: Rules ()
+langRules = do
   needGenerator <- newCache compileGenerator
   addFileCacheOracle generatorOutputDir (\_ -> pure ()) \GenerateModule{..} -> do
     generatorBin <- needGenerator (GeneratorQ generatorName)

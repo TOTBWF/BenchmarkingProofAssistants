@@ -1,21 +1,66 @@
 cradle:
   cabal:
-    - path: "generators/app/LetExample.hs"
-      component: "panbench-generators:exe:let-example"
+    - path: "generators/./LetExample.hs"
+      component: "panbench-generators:exe:LetExample"
+
+    - path: "generators/./LetAddExample.hs"
+      component: "panbench-generators:exe:LetAddExample"
 
     - path: "site/app/Main.hs"
       component: "panbench-site:exe:site"
 
-    - path: "site/app/Panbench/Internal.hs"
+    - path: "site/app/Panbench/Shake/AllCores.hs"
       component: "panbench-site:exe:site"
 
-    - path: "site/app/Panbench/HTML.hs"
+    - path: "site/app/Panbench/Shake/Benchmark.hs"
       component: "panbench-site:exe:site"
 
-    - path: "site/app/Panbench/Site/Shake.hs"
+    - path: "site/app/Panbench/Shake/Dev.hs"
       component: "panbench-site:exe:site"
 
-    - path: "site/app/Panbench/Vega.hs"
+    - path: "site/app/Panbench/Shake/Digest.hs"
+      component: "panbench-site:exe:site"
+
+    - path: "site/app/Panbench/Shake/Env.hs"
+      component: "panbench-site:exe:site"
+
+    - path: "site/app/Panbench/Shake/File.hs"
+      component: "panbench-site:exe:site"
+
+    - path: "site/app/Panbench/Shake/Git.hs"
+      component: "panbench-site:exe:site"
+
+    - path: "site/app/Panbench/Shake/HTML.hs"
+      component: "panbench-site:exe:site"
+
+    - path: "site/app/Panbench/Shake/Lang.hs"
+      component: "panbench-site:exe:site"
+
+    - path: "site/app/Panbench/Shake/Lang/Agda.hs"
+      component: "panbench-site:exe:site"
+
+    - path: "site/app/Panbench/Shake/Lang/Idris.hs"
+      component: "panbench-site:exe:site"
+
+    - path: "site/app/Panbench/Shake/Lang/Lean.hs"
+      component: "panbench-site:exe:site"
+
+    - path: "site/app/Panbench/Shake/Lang/Rocq.hs"
+      component: "panbench-site:exe:site"
+
+    - path: "site/app/Panbench/Shake/Make.hs"
+      component: "panbench-site:exe:site"
+
+    - path: "site/app/Panbench/Shake/Matrix.hs"
+      component: "panbench-site:exe:site"
+
+    - path: "site/app/Panbench/Shake/Opam.hs"
+      component: "panbench-site:exe:site"
+
+    - path: "site/app/Panbench/Shake/Store.hs"
+      component: "panbench-site:exe:site"
+
+    - path: "site/app/Panbench/Shake/Vega.hs"
       component: "panbench-site:exe:site"
 
     - path: "translators/src"
