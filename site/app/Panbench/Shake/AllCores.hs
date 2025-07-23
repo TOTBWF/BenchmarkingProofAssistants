@@ -6,7 +6,7 @@
 -- @make@ or @cabal@ that themselves take a @-j@ argument. If
 -- we ran enough of these concurrently, we could very easily
 -- bring the build process grinding to a halt, and also
--- exhuast the number of file descriptors of available while
+-- exhaust the number of file descriptors of available while
 -- we were at it.
 module Panbench.Shake.AllCores
   ( withAllCores
@@ -20,7 +20,7 @@ import GHC.Conc (getNumProcessors)
 
 import System.IO.Unsafe
 
--- | An @MVar@ for ensuring exlusive access all cores.
+-- | An @MVar@ for ensuring exlusive access to all cores.
 --
 -- Safety: @'allCores'@ is a purely internal implementation detail,
 -- and should never be exposed to the outside. Moreover, we want to
