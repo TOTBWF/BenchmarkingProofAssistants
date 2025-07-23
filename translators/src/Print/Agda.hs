@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Print.Agda
   ( printModule
   , render
@@ -10,18 +11,9 @@ import Prettyprinter
 import Prettyprinter.Render.Text (renderStrict)
 
 import Grammar
+import Print.Generic
 
 newtype Agda ann = Agda {get :: Doc ann}
-
--- to be migrated
-class Keywords rep where
-  import_ :: rep
-  assign  :: rep
-  recrd   :: rep
-  univ    :: rep
-  data_   :: rep
-  arr     :: rep
-  lcons   :: rep
 
 instance Keywords (Doc ann) where
   import_ = "open" <+> "import"
@@ -30,16 +22,17 @@ instance Keywords (Doc ann) where
   univ    = "Set"
   data_   = "data"
   arr     = "->"
-  lcons   = "\x2237" 
-
-class TypeAnn rep where
-  typeAnn :: rep -> rep -> rep
-  teleCell :: Visibility -> rep -> rep -> rep
+  lcons   = "\x2237"
+  vcons   = "\x2237"
+  typesep = ":"
+  natT    = "Nat"
+  strT    = "String"
+  vectT   = "Vec"
 
 instance TypeAnn (Doc ann) where
-  typeAnn trm typ = trm <+> ":" <+> typ
-  teleCell Explicit trm typ = parens $ trm <+> ":" <+> typ
-  teleCell Implicit trm typ = braces $ trm <+> ":" <+> typ
+  typeAnn trm typ = trm <+> typesep <+> typ
+  teleCell Explicit trm typ = parens $ trm <+> typesep <+> typ
+  teleCell Implicit trm typ = braces $ trm <+> typesep <+> typ
 
 printImport :: Import -> Doc ann
 printImport (ImportLib NatMod) = import_ <+> "Agda.Builtin.Nat"
@@ -49,7 +42,7 @@ printImport (ImportLib StringMod) = import_ <+> "Agda.Builtin.String"
 
 printArgL :: Arg [ Name ] Tm -> Doc ann
 printArgL (Arg [] t _) = printTm t
-printArgL (Arg l@(_:_) t v) = teleCell v (hsep $ map pretty l)  (printTm t) 
+printArgL (Arg l@(_:_) t v) = teleCell v (hsep $ map pretty l)  (printTm t)
 
 -- Print Terms
 printTm :: Tm -> Doc ann
@@ -60,24 +53,18 @@ printTm (PCon t []) = pretty t
 printTm (PCon name types) = pretty name <+> hsep (map printTm types)
 printTm (DCon t []) = pretty t
 printTm (DCon name types) = pretty name <+> hsep (map printTm types)
--- printTm (Index names ty) = braces $ typeAnn (hsep $ map pretty names) (printTm ty)
 printTm (Var var) = pretty var
 printTm (Paren e) = parens $ printTm e
 printTm (Binary op e1 e2) = printTm e1 <+> printOp2 op <+> printTm e2
-printTm (Let ds expr) = 
+printTm (Let ds expr) =
   "let" <+> align (vcat (map printLocalDefn ds) <+> "in") <> line <>
   printTm expr
-printTm (If cond thn els) =
-  "if" <+> printTm cond <+> "then" <+> printTm thn <+> "else" <+> printTm els
-printTm (Where expr ds) =
-  printTm expr <> line <>
-  indent 4 ("where" <> vcat (map printLocalDefn ds))
 printTm (App fun args) = printTm fun <+> softline' <> (sep $ map printTm args)
 printTm (Unary o t) = parens $ printOp1 o <+> printTm t
 printTm (Lit l) = printLit l
-printTm (KCon NatT _) = "Nat"
-printTm (KCon StringT _) = "String"
-printTm (KCon VecT l) = "Vec" <+> hsep (map printTm l)
+printTm (KCon NatT _) = natT
+printTm (KCon StringT _) = strT
+printTm (KCon VecT l) = vectT <+> hsep (map printTm l)
 
 printOp1 :: Op1 -> Doc ann
 printOp1 Suc = "suc"
@@ -107,8 +94,8 @@ printLit :: Literal -> Doc ann
 printLit (Nat n) = pretty n
 printLit (Bool b) = pretty b
 printLit (String str) = dquotes $ pretty str
-printLit (Vec l) = parens $ encloseSep emptyDoc (space <> lcons <+> lbracket <> rbracket)
-  (space <> lcons <> space) (map printTm l)
+printLit (Vec l) = parens $ encloseSep emptyDoc (space <> vcons <+> lbracket <> rbracket)
+  (space <> vcons <> space) (map printTm l)
 printLit (List l) = parens $ encloseSep emptyDoc (space <> lcons <+> lbracket <> rbracket)
   (space <> lcons <> space) (map printTm l)
 
@@ -117,7 +104,7 @@ printLocalDefn (LocDefFun var ty args expr) =
    typeSig <> tvar <+> assign <+> align (printTm expr)
     where
         typeSig = case ty of
-            Just t -> typeAnn (pretty var) (printTm t) <> line
+            Just t -> typeAnn (pretty var) ((hsep $ punctuate (space <> arr) $ map (printTm . argty) args) <+> arr <+> printTm t) <> line
             Nothing -> mempty
         tvar = case args of
             [] -> pretty var
@@ -125,7 +112,7 @@ printLocalDefn (LocDefFun var ty args expr) =
 
 -- Function to print variable definitions
 printDef :: Definition -> Doc ann
-printDef (DefTVar var t expr) = 
+printDef (DefTVar var t expr) =
   typeAnn (pretty var) (printTm t) <> hardline <>
   pretty var <+> assign <+> align (printTm expr) <> hardline
 
@@ -149,12 +136,12 @@ printDef (DefRecType name params consName fields _) =
       pp_params = if null params then pretty name else pretty name <+> hsep ll
 
 printDef (DefRec name recTm consName (FieldDef fields)) =
-    typeAnn (pretty name) (printTm recTm) <> hardline <> 
+    typeAnn (pretty name) (printTm recTm) <> hardline <>
     pretty name <+> assign <+> pretty consName <+> nest 4 (sep (map (printTm . fval) fields))
 
 printDef (OpenName _) = mempty
 printDef (Separator '\n' n _) = vcat $ replicate (fromIntegral n) emptyDoc
-printDef (Separator c n b) = 
+printDef (Separator c n b) =
   let s = hcat $ replicate (fromIntegral n) (pretty c) in
   if b then hardline <> s <> hardline else s
 

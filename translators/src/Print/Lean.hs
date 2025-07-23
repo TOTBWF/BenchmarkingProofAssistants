@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Print.Lean
   ( printModule
   , runLean
@@ -14,33 +15,24 @@ import Print.Generic
 
 newtype Lean ann = Lean {get :: Doc ann}
 
-class Keywords rep where
-  import_ :: rep
-  assign  :: rep
-  arr     :: rep
-  univ    :: rep
-{-
-  data_   :: rep
-  rec     :: rep
--}
 instance Keywords (Doc ann) where
   import_ = "import"
   assign  = ":="
-  arr     = "->"
+  recrd   = "structure"
   univ    = "Type"
-{-
-  data_   = "data"
-  rec     = "record"
--}
-
-class TypeAnn rep where
-  typeAnn :: rep -> rep -> rep
-  teleCell :: Visibility -> rep -> rep -> rep
+  data_   = "inductive"
+  arr     = "->"
+  lcons   = comma
+  vcons   = comma
+  typesep = ":"
+  natT    = "Nat"
+  strT    = "String"
+  vectT   = "Vector"
 
 instance TypeAnn (Doc ann) where
-  typeAnn trm typ = trm <+> ":" <+> typ
-  teleCell Explicit trm typ = parens $ trm <+> ":" <+> typ
-  teleCell Implicit trm typ = braces $ trm <+> ":" <+> typ
+  typeAnn trm typ = trm <+> typesep <+> typ
+  teleCell Explicit trm typ = parens $ trm <+> typesep <+> typ
+  teleCell Implicit trm typ = braces $ trm <+> typesep <+> typ
 
 -- append an Import if needed
 printWithImport :: Import -> Doc ann -> Doc ann
@@ -65,40 +57,28 @@ printTm (Binary op e1 e2) = printTm e1 <+> printOp2 op <+> printTm e2
 printTm (Let [] expr) = printTm expr
 printTm (Let (d:[]) expr) = "let" <+> printLocalDefn d <> hardline <> printTm expr
 printTm (Let (d:ds) expr) =
-  -- "let" <+> intercalate "\nlet " (map printLocalDefn (d:ds)) ++ "\n" ++ printTm expr
   vcat (map (\x -> "let" <+> printLocalDefn x) (d:ds)) <> line <>
   printTm expr
-printTm (If cond thn els) = "if" <+> printTm cond <+> "then" <> hardline <>
-  indent 4 (printTm thn) <> hardline <>
-  "else" <+> printTm els
-printTm (Where expr ds) = printTm expr <> hardline <>
-  indent 4 ("where" <> hardline <> vsep (map printLocalDefn ds))
 printTm (App fun args) = printTm fun <+> fillSep (map (group . printTm) args)
 printTm (Unary o t) = parens $ printOp1 o <+> printTm t
 printTm (Lit l) = printLit l
-printTm (KCon NatT _) = "Nat"
-printTm (KCon StringT _) = "String"
-printTm (KCon VecT l) = "Vector" <+> hsep (map printTm l)
-
-printReturnType :: Tm -> Doc ann
-printReturnType (PCon t []) = pretty t
-printReturnType (Arr _ t) = printReturnType t
-printReturnType t@(KCon _ _) = printTm t
-printReturnType _ = error "should not occur as a return type"
+printTm (KCon NatT _) = natT
+printTm (KCon StringT _) = strT
+printTm (KCon VecT l) = vectT <+> hsep (map printTm l)
 
 printArg :: Pretty a => Arg a Tm -> Doc ann
 printArg a = parens $ typeAnn (pretty $ arg a) (printTm $ argty a)
 
 printArgL :: Arg [ Name ] Tm -> Doc ann
 printArgL (Arg [] t _) = printTm t
-printArgL (Arg l@(_:_) t v) = teleCell v (hsep $ map pretty l) (printTm t) 
+printArgL (Arg l@(_:_) t v) = teleCell v (hsep $ map pretty l) (printTm t)
 
 printLit :: Literal -> Doc ann
 printLit (Nat n) = pretty n
 printLit (Bool b) = pretty b
 printLit (String str) = dquotes $ pretty str
-printLit (Vec l) = "#" <> brackets (hsep $ punctuate comma (map printTm l))
-printLit (List l) = brackets $ hsep $ punctuate comma (map printTm l)
+printLit (Vec l) = "#" <> brackets (hsep $ punctuate vcons (map printTm l))
+printLit (List l) = brackets $ hsep $ punctuate lcons (map printTm l)
 
 printOp1 :: Op1 -> Doc ann
 printOp1 Suc = "Nat.succ"  -- use `Nat.succ` explicitly
@@ -127,15 +107,16 @@ printMatch (Patterns p) = vsep (map printCase p)
 printLocalDefn :: LocalDefn -> Doc ann
 printLocalDefn (LocDefFun var Nothing args expr) =
   prettyArgs var printArg args <+> assign <+> printTm expr
-printLocalDefn (LocDefFun var (Just t) args expr) =
-  typeAnn (prettyArgs var printArg args) (printReturnType t) <+> assign <+> printTm expr
+printLocalDefn (LocDefFun var (Just t) args expr) = typeAnn targs (printTm t) <+> assign <+>
+  printTm expr
+  where targs = prettyArgs var printArg args
 
 printDef :: [Definition] -> Definition -> Doc ann
 printDef _ (DefTVar var t expr) = "def" <+> typeAnn (pretty var) (printTm t) <+>
   assign <+> printTm expr
 printDef _ (DefPatt var ty _ cons) = "def" <+> typeAnn (pretty var) (printTm ty) <> hardline <> printMatch cons
 printDef _ (DefPDataType name params constr t) =
-  "inductive" <+>
+  data_ <+>
       typeAnn (pParams params) (printTm t) <+> "where" <> hardline <> printDataConst constr
   where
     pParams [] = pretty name
@@ -143,7 +124,7 @@ printDef _ (DefPDataType name params constr t) =
 
 -- records Def
 printDef _ (DefRecType name params consName fields _) =
-    "structure" <+> prettyParams <+> "where" <> hardline <>
+    recrd <+> prettyParams <+> "where" <> hardline <>
     indent 4 (pretty consName <+> "::" <> hardline <> printFieldDecl fields) <> hardline
       where
         prettyParams = case params of

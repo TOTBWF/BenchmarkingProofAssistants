@@ -66,10 +66,6 @@ data Tm
     -- ^ for known, hard-coded unary operations
   | Let [LocalDefn] Tm
     -- ^ Let bindigs (of potentially many things)
-  | If Tm Tm Tm
-    -- ^ if-then-else (actually not used)
-  | Where Tm [LocalDefn]
-    -- ^ where clauses (actually not used)
   | App Tm [Tm]
     -- ^ application of a term to potentially many (n-ary form allows nicer display)
   | Paren Tm
@@ -83,6 +79,7 @@ data Visibility = Explicit | Implicit
 data Arg a b = Arg { arg :: a, argty :: b , vis :: Visibility}
 
 -- Separate FieldT and FieldV for printing purposes
+
 data FieldT = FieldT { fname :: Name, fty :: Tm }
 -- ^ A single Field type
 data FieldV = FieldV { flabel :: Name, fval :: Tm }

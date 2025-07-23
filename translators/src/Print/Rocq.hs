@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Print.Rocq
   ( printModule
   , render
@@ -11,35 +12,28 @@ import Prettyprinter
 import Prettyprinter.Render.Text (renderStrict)
 
 import Grammar
-import Print.Generic (prettyArgs)
+import Print.Generic
 
 newtype Rocq ann = Rocq {get :: Doc ann}
-
--- to be migrated
-class Keywords rep where
-  import_ :: rep
-  assign  :: rep
-  univ    :: rep
-  recrd   :: rep
-  arr     :: rep
 
 instance Keywords (Doc ann) where
   import_ = "Require" <+> "Import"
   assign  = ":="
   recrd   = "Record"
   univ    = "Type"
+  data_   = "Inductive"
   arr     = "->"
-
-
-class TypeAnn rep where
-  typeAnn :: rep -> rep -> rep
-  teleCell :: Visibility -> rep -> rep -> rep
+  lcons   = comma
+  vcons   = semi
+  typesep = ":"
+  natT    = "nat"
+  strT    = "string"
+  vectT   = "Vect"
 
 instance TypeAnn (Doc ann) where
-  typeAnn trm typ = trm <+> ":" <+> typ
-  teleCell Explicit trm typ = parens $ trm <+> ":" <+> typ
-  teleCell Implicit trm typ = brackets $ trm <+> ":" <+> typ
-
+  typeAnn trm typ = trm <+> typesep <+> typ
+  teleCell Explicit trm typ = parens $ trm <+> typesep <+> typ
+  teleCell Implicit trm typ = brackets $ trm <+> typesep <+> typ
 
 -- FIXME: end '.' should not be hard-coded
 printImport :: Import -> Doc ann
@@ -63,41 +57,31 @@ printTm (Binary op e1 e2) = printTm e1 <+> printOp2 op <+> printTm e2
 printTm (Let ds expr) =
   "let" <+> align (vcat (map printLocalDefn ds) <+> "in") <> line <>
   printTm expr
-printTm (If cond thn els) = "if" <+> printTm cond <+> "then" <+> printTm thn <+> "else" <+> printTm els
-printTm (Where expr ds) =
-  printTm expr <> hardline <>
-  indent 4 ("where " <+> vcat (map printLocalDefn ds))
 printTm (App fun args) = printTm fun <+> (hsep $ map printTm args)
 printTm (Unary o e) = parens $ printOp1 o <+> printTm e
 printTm (Lit l) = printLit l
-printTm (KCon NatT _) = "nat"
-printTm (KCon StringT _) = "string"
-printTm (KCon VecT l) = "Vect" <+> hsep (map printTm l)
-
-printReturnType :: Tm -> Doc ann
-printReturnType (PCon t []) = pretty t -- $ T.toLower t --required for nested functions
-printReturnType (Arr _ t) = printReturnType t
-printReturnType t@(KCon _ _) = printTm t
-printReturnType _ = error "should not occur as a return type"
+printTm (KCon NatT _) = natT
+printTm (KCon StringT _) = strT
+printTm (KCon VecT l) = vectT <+> hsep (map printTm l)
 
 printArg :: Pretty a => Arg a Tm -> Doc ann
 printArg a = parens $ typeAnn (pretty $ arg a) (printTm $ argty a)
 
 printArgL :: Arg [ Name ] Tm -> Doc ann
 printArgL (Arg [] t _) = printTm t
-printArgL (Arg (x:xs) t v) = teleCell v (foldr (\ nm d -> pretty nm <+> d) (pretty x) xs)  (printTm t) 
+printArgL (Arg (x:xs) t v) = teleCell v (foldr (\ nm d -> pretty nm <+> d) (pretty x) xs)  (printTm t)
 
 -- this is partial on purpose
 printTele :: Tm -> Doc ann
-printTele (Pi lt t) = foldr (\a d -> printArgL a <+> d) (":" <+> printTm t) lt
+printTele (Pi lt t) = foldr (\a d -> printArgL a <+> d) (typesep <+> printTm t) lt
 printTele _ = error "expecting a Pi type, got something else"
 
 printLit :: Literal -> Doc ann
 printLit (Nat n) = pretty n
 printLit (Bool b) = pretty b
 printLit (String str) = dquotes $ pretty str
-printLit (Vec l) = encloseSep lbracket rbracket (semi <> space) (map printTm l)
-printLit (List l) = encloseSep lbracket rbracket (comma <> space) (map printTm l)
+printLit (Vec l) = encloseSep lbracket rbracket (vcons <> space) (map printTm l)
+printLit (List l) = encloseSep lbracket rbracket (lcons <> space) (map printTm l)
 
 printOp1 :: Op1 -> Doc ann
 printOp1 Suc = "S"
@@ -113,7 +97,7 @@ printFieldDecl (FieldDecl fields) = vsep $ map printFieldT fields
 
 -- Hack: printing implicits using a comma
 printIndices :: Tm -> Doc ann
-printIndices (Arr (Arg n t Implicit) ctype) = 
+printIndices (Arr (Arg n t Implicit) ctype) =
   "forall" <+> braces (typeAnn (pretty $ T.unwords n) (printTm t))
   <> comma <+> (printTm ctype)
 printIndices t = printTm t
@@ -133,7 +117,7 @@ printMatch (Patterns p) = vsep (map printCase p)
 printLocalDefn :: LocalDefn -> Doc ann
 printLocalDefn (LocDefFun var Nothing args expr) =
   prettyArgs var printArg args <+> assign <+> printTm expr
-printLocalDefn (LocDefFun var (Just t) args expr) = typeAnn targs (printReturnType t) <+> assign <+>
+printLocalDefn (LocDefFun var (Just t) args expr) = typeAnn targs (printTm t) <+> assign <+>
   printTm expr
   where targs = prettyArgs var printArg args
 
@@ -147,14 +131,14 @@ printDef (DefPatt var ty m cons) = "Fixpoint" <+> pretty var <+> printTele ty
   printMatch cons <> softline' <+> "end" <> dot <> hardline
 
 printDef (DefPDataType name params constr ty) =
-  "Inductive" <+> printParams params <+> assign <> hardline <> printDataCons constr <> dot
+  data_ <+> printParams params <+> assign <> hardline <> printDataCons constr <> dot
   where
     printParams [] = typeAnn (pretty name) (printTm ty)
     printParams (_:_) =  (pretty name) <+>
       typeAnn (hsep (map ( \(Arg x y v) -> teleCell v (pretty x) (printTm y)) params)) (printTm ty)
 
 --Function for Records
-printDef (DefRecType name params consName fields _) = 
+printDef (DefRecType name params consName fields _) =
     recrd <+> typeAnn recName univ <+> assign <+> pretty consName <+>
     lbrace <> hardline <> indent 2 (printFieldDecl fields) <> hardline <> rbrace <> dot <> hardline
     where

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Print.Idris
   ( printModule
   , render
@@ -10,18 +11,9 @@ import Prettyprinter
 import Prettyprinter.Render.Text (renderStrict)
 
 import Grammar
-import Print.Generic (blanklines)
+import Print.Generic
 
 newtype Idris ann = Idris {get :: Doc ann}
-
--- to be migrated
-class Keywords rep where
-  import_ :: rep
-  assign  :: rep
-  data_   :: rep
-  recrd   :: rep
-  univ    :: rep
-  arr     :: rep
 
 instance Keywords (Doc ann) where
   import_ = "import"
@@ -30,15 +22,17 @@ instance Keywords (Doc ann) where
   recrd   = "record"
   univ    = "Type"
   arr     = "->"
-
-class TypeAnn rep where
-  typeAnn :: rep -> rep -> rep
-  teleCell :: Visibility -> rep -> rep -> rep
+  lcons   = comma
+  vcons   = comma
+  typesep = ":"
+  natT    = "Nat"
+  strT    = "String"
+  vectT   = "Vect"
 
 instance TypeAnn (Doc ann) where
-  typeAnn trm typ = trm <+> ":" <+> typ
-  teleCell Explicit trm typ = parens $ trm <+> ":" <+> typ
-  teleCell Implicit trm typ = braces $ trm <+> ":" <+> typ
+  typeAnn trm typ = trm <+> typesep <+> typ
+  teleCell Explicit trm typ = parens $ trm <+> typesep <+> typ
+  teleCell Implicit trm typ = braces $ trm <+> typesep <+> typ
 
 -- append an Import if needed
 printWithImport :: Import -> Doc ann -> Doc ann
@@ -50,7 +44,7 @@ printWithImport (ImportLib ListMod) m = m
 
 printArgL :: Arg [ Name ] Tm -> Doc ann
 printArgL (Arg [] t _) = printTm t
-printArgL (Arg l@(_:_) t v) = teleCell v (hsep $ punctuate comma $ map pretty l) (printTm t) 
+printArgL (Arg l@(_:_) t v) = teleCell v (hsep $ punctuate comma $ map pretty l) (printTm t)
 
 printTm :: Tm -> Doc ann
 printTm (Univ) = univ
@@ -60,32 +54,26 @@ printTm (PCon t []) = pretty t
 printTm (PCon name types) = pretty name <+> hsep (map printTm types)
 printTm (DCon t []) = pretty t
 printTm (DCon name types) = pretty name <+> hsep (map printTm types)
--- printTm (Index names ty) = braces $ typeAnn (hsep $ punctuate comma $ map pretty names) (printTm ty)
 printTm (Var var) = pretty var
 printTm (Paren e) = parens $ printTm e
 printTm (Binary op e1 e2) = printTm e1 <+> printOp2 op <+> printTm e2
-printTm (Let ds expr) = 
+printTm (Let ds expr) =
   "let" <+> align (vcat (map printLocalDefn ds) <+> "in") <> line <>
   printTm expr
-printTm (If cond thn els) =
-  "if" <+> printTm cond <+> "then" <+> printTm thn <+> "else" <+> printTm els
-printTm (Where expr ds) =
-  printTm expr <> hardline <>
-  indent 4 ("where" <> vcat (map printLocalDefn ds))
 printTm (App fun args) = printTm fun <+> (fillSep (map (group . printTm) args))
 printTm (Unary o t) = parens $ printOp1 o <+> printTm t
 printTm (Lit l) = printLit l
-printTm (KCon NatT _) = "Nat"
-printTm (KCon StringT _) = "String"
-printTm (KCon VecT [s, t]) = "Vect" <+> printTm t <+> printTm s
+printTm (KCon NatT _) = natT
+printTm (KCon StringT _) = strT
+printTm (KCon VecT [s, t]) = vectT <+> printTm t <+> printTm s
 printTm (KCon VecT _) = error "Vect takes exactly two arguments"
 
 printLit :: Literal -> Doc ann
 printLit (Nat n) = pretty n
 printLit (Bool b) = pretty b
 printLit (String str) = dquotes $ pretty str
-printLit (Vec l) =  brackets $ fillSep $ punctuate comma $ map printTm l
-printLit (List l) = brackets $ fillSep $ punctuate comma $ map printTm l
+printLit (Vec l) =  brackets $ fillSep $ punctuate vcons $ map printTm l
+printLit (List l) = brackets $ fillSep $ punctuate lcons $ map printTm l
 
 printOp1 :: Op1 -> Doc ann
 printOp1 Suc = "S"
@@ -104,8 +92,8 @@ printDataConst p (DataCons l) = vsep $ map (prettyCon p) l
 
 prettyCon :: Parameters -> Constr -> Doc ann
 prettyCon [] (Constr n t) = typeAnn (pretty n) (printTm t)
-prettyCon p  (Constr n t) = typeAnn (pretty n) 
-                                    (encloseSep emptyDoc (space <> arr) (space <> arr <> space) 
+prettyCon p  (Constr n t) = typeAnn (pretty n)
+                                    (encloseSep emptyDoc (space <> arr) (space <> arr <> space)
                                        (map (pretty.arg) p))
                             <+> printTm t
 
@@ -116,24 +104,24 @@ printMatch :: Name -> Patterns -> Doc ann
 printMatch nm (Patterns p) = vsep (map (printCase nm) p)
 
 printLocalDefn :: LocalDefn -> Doc ann
-printLocalDefn (LocDefFun var ty args expr) = 
+printLocalDefn (LocDefFun var ty args expr) =
   typeSig <> tvar <+> assign <+> align (printTm expr)
     where
         typeSig = case ty of
-            Just t -> typeAnn (pretty var) (printTm t) <> line
+            Just t -> typeAnn (pretty var) ((hsep $ punctuate (space <> arr) $ map (printTm . argty) args) <+> arr <+> printTm t) <> line
             Nothing -> mempty
         tvar = case args of
             [] -> pretty var
             (_:_) -> pretty var <+> (hsep $ map (pretty . arg) args)
 
 printDef :: Definition -> Doc ann
-printDef (DefTVar var t expr) = 
+printDef (DefTVar var t expr) =
   typeAnn (pretty var) (printTm t) <> hardline <>
   pretty var <+> assign <+> align (printTm expr) <> hardline
 
 printDef (DefPatt var ty _ cons) = typeAnn (pretty var) (printTm ty) <> line <> printMatch var cons
 printDef (DefPDataType name params cons ty) =
-  data_ <+> 
+  data_ <+>
     prettyParams params <+> "where" <> hardline <> indent 1 (printDataConst params cons) <> hardline
     where
       prettyParams [] = typeAnn (pretty name) (printTm ty)
@@ -150,13 +138,13 @@ printDef (DefRecType name params consName fields _) =
       pp_params = if null params then pretty name else pretty name <+> hsep ll
 
 printDef (DefRec name recType consName (FieldDef fields)) =
-    typeAnn (pretty name) (printTm recType) <> hardline <> 
+    typeAnn (pretty name) (printTm recType) <> hardline <>
     pretty name <+> assign <+> pretty consName <+> nest 4 (sep (map (printTm . fval) fields)) <>
     hardline
 
 printDef (OpenName _) = emptyDoc
 printDef (Separator '\n' n _) = blanklines n
-printDef (Separator c n b) = 
+printDef (Separator c n b) =
   let s = hcat $ replicate (fromIntegral n) (pretty c) in
   if b then hardline <> s <> hardline else s
 
