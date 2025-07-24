@@ -31,12 +31,23 @@ executable site
         TypeFamilies
         TypeOperators
     other-modules:
+        Panbench.Shake.AllCores
         Panbench.Shake.Benchmark
         Panbench.Shake.Dev
+        Panbench.Shake.Digest
+        Panbench.Shake.Env
         Panbench.Shake.File
+        Panbench.Shake.Git
         Panbench.Shake.HTML
         Panbench.Shake.Lang
+        Panbench.Shake.Lang.Agda
+        Panbench.Shake.Lang.Idris
+        Panbench.Shake.Lang.Lean
+        Panbench.Shake.Lang.Rocq
+        Panbench.Shake.Make
         Panbench.Shake.Matrix
+        Panbench.Shake.Opam
+        Panbench.Shake.Store
         Panbench.Shake.Vega
     build-depends:
         base >=4.17.2.0,
@@ -45,6 +56,7 @@ executable site
         blaze-html >= 0.9,
         bytestring >= 0.12,
         containers >= 0.6,
+        cryptohash-sha256 >= 0.11,
         directory >= 1.3,
         filepath >= 1.5,
         hvega >= 0.12,
