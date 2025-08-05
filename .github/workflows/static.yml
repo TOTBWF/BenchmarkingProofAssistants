@@ -10,10 +10,10 @@ on:
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+# permissions:
+#   contents: read
+#   pages: write
+#   id-token: write
 
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
@@ -50,6 +50,7 @@ jobs:
           # tar doesn't get run with the right permissions when unpacking the
           # cache on linux, so we just chown the ghcup directory.
           sudo chown -R $(whoami):$(id -ng) ~/.ghcup/
+          sudo apt-get install git libgmp-dev libuv1-dev cmake ccache clang pkgconf
 
       - name: Restore ghcup cache ♻️
         uses: actions/cache/restore@v4
@@ -68,7 +69,7 @@ jobs:
           cabal-version: ${{ env.cabal-version }}
 
       - name: Install OCaml ${{ env.ocaml-version }} 🐫
-        uses: actions/ocaml/setup-ocaml@v3
+        uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: ${{ env.ocaml-version }}
 
@@ -99,14 +100,17 @@ jobs:
         uses: actions/cache/restore@v4
         id: store-cache
         env:
-          key: ${{ env.os }}-ghc-${{ env.ghc-version }}-cabal-${{ env.cabal-version }}-ocaml-${{ env.ocaml-version }}
+          # [HACK]: we really should be using the ocaml/chez versions as part of the cache key,
+          # but actions/cache doesn't support commas in cache keys, so
+          # including 'ocaml-variants.4.14.2+options,ocaml-option-flambda' makes it explode.
+          key: ${{ env.os }}-ghc-${{ env.ghc-version }}-cabal-${{ env.cabal-version }}
         with:
           path: '_build/store'
           key: ${{ env.key }}-plan-${{ hashFiles('**/plan.json') }}
           restore-keys: ${{ env.key }}-
 
       - name: Build 🛠️
-        run: cabal run panbench-site -- install-rocq
+        run: cabal run panbench-site -- _build/site/index.html
 
       - name: Cache store 💾
         uses: actions/cache/save@v4
