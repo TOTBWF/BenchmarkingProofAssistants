@@ -17,6 +17,7 @@ import Development.Shake.Classes
 import GHC.Generics
 
 import Panbench.Shake.AllCores
+import Panbench.Shake.Chez
 import Panbench.Shake.Git
 import Panbench.Shake.Make
 import Panbench.Shake.Store
@@ -66,7 +67,8 @@ idrisInstall IdrisQ{..} storeDir = do
     -- investigate if there is a way to fix this.
     case idrisInstallScheme of
       Chez -> do
-        makeCommand_ [Cwd workDir, AddEnv "SCHEME" "chez"] ["bootstrap", "-j" ++ show nCores]
+        chez <- needChez
+        makeCommand_ [Cwd workDir, AddEnv "SCHEME" chez] ["bootstrap", "-j" ++ show nCores]
         makeCommand_ [Cwd workDir, AddEnv "PREFIX" storeDir] ["install", "-j" ++ show nCores]
       Racket -> do
         makeCommand_ [Cwd workDir] ["bootstrap-racket", "-j" ++ show nCores]

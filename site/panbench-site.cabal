@@ -33,6 +33,7 @@ executable site
     other-modules:
         Panbench.Shake.AllCores
         Panbench.Shake.Benchmark
+        Panbench.Shake.Chez
         Panbench.Shake.Dev
         Panbench.Shake.Digest
         Panbench.Shake.Env
