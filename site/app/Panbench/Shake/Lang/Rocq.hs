@@ -2,7 +2,9 @@
 module Panbench.Shake.Lang.Rocq
   ( -- $shakeRocqInstall
     RocqQ(..)
+  , defaultRocqInstallRev
   , defaultRocqOcamlCompiler
+  , needRocqInstallOpts
   , needRocq
   -- $shakeRocqCommands
   , rocqCheckDefaultArgs
@@ -10,6 +12,8 @@ module Panbench.Shake.Lang.Rocq
   -- $shakeRocqRules
   , rocqRules
   ) where
+
+import Data.List
 
 import Development.Shake
 import Development.Shake.Classes
@@ -39,9 +43,40 @@ data RocqQ = RocqQ
   deriving stock (Show, Eq, Ord, Generic)
   deriving anyclass (Hashable, Binary, NFData)
 
+-- | Default @rocq@ revision.
+defaultRocqInstallRev :: String
+defaultRocqInstallRev = "V9.0.0"
+
 -- | Default @ocaml@ compiler to use for @rocq@.
 defaultRocqOcamlCompiler :: String
 defaultRocqOcamlCompiler = "ocaml-variants.4.14.2+options,ocaml-option-flambda"
+
+-- | Docs for the @install-rocq@ rule.
+rocqInstallDocs :: String
+rocqInstallDocs = unlines
+  [ "Install a version of rocq."
+  , ""
+  , "Can be configured with the following environment variables:"
+  , "* $ROCQ_VERSION: select the revision of rocq to install "
+  , "  Defaults to " <> defaultRocqInstallRev
+  , "* $ROCQ_OCAML: select the version of ocaml to use to build rocq."
+  , "  Defaults to " <> defaultRocqOcamlCompiler
+  ]
+
+-- | Get the @rocq@ version to install from the @$ROCQ_VERSION@ environment variable.
+needRocqInstallRev :: Action String
+needRocqInstallRev = getEnvWithDefault defaultRocqInstallRev "ROCQ_VERSION"
+
+-- | Get the @ocaml@ compiler used to install @rocq@ from the @$ROCQ_OCAML@ environment variable.
+needRocqInstallOcaml :: Action String
+needRocqInstallOcaml = getEnvWithDefault defaultRocqOcamlCompiler "ROCQ_OCAML"
+
+-- | Get install options for @rocq@ from environment variables.
+needRocqInstallOpts :: Action RocqQ
+needRocqInstallOpts = do
+  rocqInstallRev <- needRocqInstallRev
+  rocqOcamlCompiler <- needRocqInstallOcaml
+  pure RocqQ {..}
 
 -- | Oracle for installing a version of @rocq@.
 rocqInstallOracle :: RocqQ -> FilePath -> Action ()
@@ -54,8 +89,8 @@ rocqInstallOracle RocqQ{..} storeDir = do
     , gitWorktreeDir = workDir
     , gitWorktreeRev = rocqInstallRev
     }
-  withOpamSwitch (LocalSwitch workDir) ["--packages=" ++ rocqOcamlCompiler, "--no-install"] \opamEnv -> do
-    needsOpamInstall_ opamEnv ["dune", "ocamlfind", "zarith"]
+  let rocqSwitchPkgs = intercalate "," [rocqOcamlCompiler, "dune", "ocamlfind", "zarith"]
+  withOpamSwitch (LocalSwitch workDir) ["--packages=" ++ rocqSwitchPkgs, "--no-install"] \opamEnv -> do
     command_ (opamEnvOpts opamEnv) "./configure" ["-prefix", storeDir]
     makeCommand_ (opamEnvOpts opamEnv) ["dunestrap"]
     -- We need to use @NJOBS@ over @-j@, see @dev/doc/build-system.dune.md@ for details.
@@ -100,6 +135,12 @@ rocqDoctor rocqQ = do
 rocqRules :: Rules ()
 rocqRules = do
   addStoreOracle "rocq" rocqInstallOracle
+
+  withTargetDocs rocqInstallDocs $ phony "install-rocq" do
+    opts <- needRocqInstallOpts
+    _ <- needRocq opts
+    pure ()
+
   phony "clean-rocq" do
     removeFilesAfter "_build/repos" ["rocq-*"]
     removeFilesAfter "_build/store" ["rocq-*"]

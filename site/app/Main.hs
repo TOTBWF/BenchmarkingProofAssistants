@@ -5,6 +5,7 @@ import Development.Shake
 import System.Directory
 
 import Panbench.Shake.Dev
+import Panbench.Shake.Chez
 import Panbench.Shake.Env
 import Panbench.Shake.Git
 import Panbench.Shake.HTML
@@ -23,14 +24,15 @@ main = shakeArgs (shakeOptions {shakeFiles="_build"}) do
   benchmarkMatrixRules
   siteRules
 
+  chezRules
+  envRules
+  gitRules
   makeRules
   opamRules
-  gitRules
-  envRules
 
   agdaRules
-  leanRules
   idrisRules
+  leanRules
   rocqRules
 
   withTargetDocs "Remove all generated html files." $

@@ -40,27 +40,18 @@ import Panbench.Lang qualified as Lang
 --
 -- Always returns an absolute path.
 needLang :: Lang -> Action FilePath
-needLang Agda =
-  needAgda AgdaQ
-    { agdaInstallRev = "v2.8.0"
-    , agdaInstallFlags = defaultAgdaInstallFlags
-    }
-needLang Idris =
-  needIdris IdrisQ
-    { idrisInstallRev = "v0.7.0"
-    , idrisInstallScheme = Chez
-    }
-needLang Lean =
-  needLean LeanQ
-    { leanInstallRev = "v4.21.0"
-    , leanCMakeFlags = defaultLeanCMakeFlags
-    , leanMakeFlags = defaultLeanMakeFlags
-    }
-needLang Rocq =
-  needRocq RocqQ
-    { rocqInstallRev = "V9.0.0"
-    , rocqOcamlCompiler = defaultRocqOcamlCompiler
-    }
+needLang Agda = do
+  opts <- needAgdaInstallOpts
+  needAgda opts
+needLang Idris = do
+  opts <- needIdrisInstallOpts
+  needIdris opts
+needLang Lean = do
+  opts <- needLeanInstallOpts
+  needLean opts
+needLang Rocq = do
+  opts <- needRocqInstallOpts
+  needRocq opts
 
 -- | Remove all build artifacts for a @'Lang'@ in a directory.
 cleanBuildArtifacts :: Lang -> FilePath -> Action ()

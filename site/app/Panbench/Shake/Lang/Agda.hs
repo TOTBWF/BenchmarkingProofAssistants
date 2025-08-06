@@ -2,7 +2,9 @@
 module Panbench.Shake.Lang.Agda
   ( -- $shakeAgdaInstall
     AgdaQ(..)
+  , defaultAgdaInstallRev
   , defaultAgdaInstallFlags
+  , needAgdaInstallOpts
   , needAgda
   -- $shakeAgdaCommands
   , agdaCheckDefaultArgs
@@ -40,6 +42,10 @@ data AgdaQ = AgdaQ
   deriving stock (Show, Eq, Ord, Generic)
   deriving anyclass (Hashable, Binary, NFData)
 
+-- | Default revision of @agda@ to install.
+defaultAgdaInstallRev :: String
+defaultAgdaInstallRev = "v2.8.0"
+
 -- | Default flags to use for Agda installation.
 --
 -- We use the following defaults:
@@ -54,6 +60,35 @@ defaultAgdaInstallFlags =
   , "--disable-tests"
   , "--disable-profiling"
   ]
+
+-- | Docs for the @install-agda@ rule.
+agdaInstallDocs :: String
+agdaInstallDocs = unlines
+  [ "Install a version of agda."
+  , ""
+  , "Can be configured with the following environment variables:"
+  , "* $AGDA_VERSION: select the revision of agda to install."
+  , "  Defaults to " <> defaultAgdaInstallRev
+  , "* $AGDA_CABAL_FLAGS: pass flags to cabal when building agda."
+  , "  Arguments should be separated by spaces."
+  , "  Defaults to " <> unwords defaultAgdaInstallFlags
+  ]
+
+
+-- | Get the version of @agda@ to install from the @$AGDA_VERSION@ environment variable.
+needAgdaInstallRev :: Action String
+needAgdaInstallRev = getEnvWithDefault defaultAgdaInstallRev "AGDA_VERSION"
+
+-- | Get cabal flags to build @agda@ from the @$AGDA_CABAL_FLAGS@ environment variable.
+needAgdaInstallFlags :: Action [String]
+needAgdaInstallFlags = maybe defaultAgdaInstallFlags words <$> getEnv "AGDA_CABAL_FLAGS"
+
+-- | Get install options for @agda@ from environment variables.
+needAgdaInstallOpts :: Action AgdaQ
+needAgdaInstallOpts = do
+  agdaInstallRev <- needAgdaInstallRev
+  agdaInstallFlags <- needAgdaInstallFlags
+  pure AgdaQ {..}
 
 -- | Oracle for installing a version of Agda.
 --
@@ -112,6 +147,12 @@ agdaDoctor agdaQ = do
 agdaRules :: Rules ()
 agdaRules = do
   addStoreOracle "agda" agdaInstall
+
+  withTargetDocs agdaInstallDocs $ phony "install-agda" do
+    opts <- needAgdaInstallOpts
+    _ <- needAgda opts
+    pure ()
+
   phony "clean-agda" do
     removeFilesAfter "_build/repos" ["agda-*"]
     removeFilesAfter "_build/store" ["agda-*"]

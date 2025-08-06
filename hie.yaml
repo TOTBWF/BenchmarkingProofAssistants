@@ -15,6 +15,9 @@ cradle:
     - path: "site/app/Panbench/Shake/Benchmark.hs"
       component: "panbench-site:exe:site"
 
+    - path: "site/app/Panbench/Shake/Chez.hs"
+      component: "panbench-site:exe:site"
+
     - path: "site/app/Panbench/Shake/Dev.hs"
       component: "panbench-site:exe:site"
 

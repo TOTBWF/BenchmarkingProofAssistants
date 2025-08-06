@@ -3,6 +3,9 @@ module Panbench.Shake.Lang.Idris
   ( -- $shakeIdrisInstall
     IdrisQ(..)
   , SchemeCompiler(..)
+  , defaultIdrisInstallRev
+  , defaultIdrisInstallScheme
+  , needIdrisInstallOpts
   , needIdris
   -- $shakeIdrisCommands
   , idrisCheckDefaultArgs
@@ -17,6 +20,7 @@ import Development.Shake.Classes
 import GHC.Generics
 
 import Panbench.Shake.AllCores
+import Panbench.Shake.Chez
 import Panbench.Shake.Git
 import Panbench.Shake.Make
 import Panbench.Shake.Store
@@ -49,6 +53,51 @@ data SchemeCompiler
 
 type instance RuleResult IdrisQ = FilePath
 
+-- | Default revision of @idris@ to install.
+defaultIdrisInstallRev :: String
+defaultIdrisInstallRev = "v0.7.0"
+
+-- | Default scheme flavor to use to install @idris@.
+defaultIdrisInstallScheme :: SchemeCompiler
+defaultIdrisInstallScheme = Chez
+
+-- | Get the @idris@ install revision from the @$IDRIS_VERSION@ environment variable.
+needIdrisInstallRev :: Action String
+needIdrisInstallRev = getEnvWithDefault defaultIdrisInstallRev "IDRIS_VERSION"
+
+-- | Get the @idris@ scheme flavor to use from the @$IDRIS_SCHEME@ environment variable.
+needIdrisInstallScheme :: Action SchemeCompiler
+needIdrisInstallScheme = do
+  getEnv "IDRIS_SCHEME" >>= \case
+    Nothing -> pure Chez
+    Just "chez" -> pure Chez
+    Just "racket" -> pure Racket
+    Just scheme -> fail $ unlines
+      [ "Unsupported scheme: " <> scheme
+      , "Must be one of 'chez' or 'racket'."
+      ]
+
+-- | Docs for the @install-idris@ rule.
+idrisInstallDocs :: String
+idrisInstallDocs = unlines
+  [ "Install a version of idris."
+  , ""
+  , "Can be configured with the following environment variables:"
+  , "* $IDRIS_VERSION: select the revision of rocq to install "
+  , "  Defaults to " <> defaultIdrisInstallRev
+  , "* $IDRIS_SCHEME: select the scheme flavor used to build idris."
+  , "  Must be one of 'chez' or 'racket'."
+  , "  Defaults to 'chez'"
+  ]
+
+
+-- | Get install options for @idris@ from environment variables.
+needIdrisInstallOpts :: Action IdrisQ
+needIdrisInstallOpts = do
+  idrisInstallRev <- needIdrisInstallRev
+  idrisInstallScheme <- needIdrisInstallScheme
+  pure IdrisQ {..}
+
 -- | Oracle for installing a version of Idris 2.
 idrisInstall :: IdrisQ -> FilePath -> Action ()
 idrisInstall IdrisQ{..} storeDir = do
@@ -66,7 +115,8 @@ idrisInstall IdrisQ{..} storeDir = do
     -- investigate if there is a way to fix this.
     case idrisInstallScheme of
       Chez -> do
-        makeCommand_ [Cwd workDir, AddEnv "SCHEME" "chez"] ["bootstrap", "-j" ++ show nCores]
+        chez <- needChez
+        makeCommand_ [Cwd workDir, AddEnv "SCHEME" chez] ["bootstrap", "-j" ++ show nCores]
         makeCommand_ [Cwd workDir, AddEnv "PREFIX" storeDir] ["install", "-j" ++ show nCores]
       Racket -> do
         makeCommand_ [Cwd workDir] ["bootstrap-racket", "-j" ++ show nCores]
@@ -106,6 +156,12 @@ idrisDoctor idrisQ = do
 idrisRules :: Rules ()
 idrisRules = do
   addStoreOracle "idris" idrisInstall
+
+  withTargetDocs idrisInstallDocs $ phony "install-idris" do
+    opts <- needIdrisInstallOpts
+    _ <- needIdris opts
+    pure ()
+
   phony "clean-idris" do
     removeFilesAfter "_build/repos" ["idris2-*"]
     removeFilesAfter "_build/store" ["idris2-*"]
