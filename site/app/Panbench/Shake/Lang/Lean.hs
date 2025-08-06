@@ -2,8 +2,10 @@
 module Panbench.Shake.Lang.Lean
   ( -- $shakeLeanInstall
     LeanQ(..)
+  , defaultLeanInstallRev
   , defaultLeanCMakeFlags
   , defaultLeanMakeFlags
+  , needLeanInstallOpts
   , needLean
   -- $shakeLeanCommands
   , leanCheckDefaultArgs
@@ -43,13 +45,53 @@ data LeanQ = LeanQ
 
 type instance RuleResult LeanQ = FilePath
 
+-- | Default revision of @lean@ to install.
+defaultLeanInstallRev :: String
+defaultLeanInstallRev = "v4.21.0"
+
 -- | Default flags to pass to @cmake@ when compiling lean.
 defaultLeanCMakeFlags :: [String]
-defaultLeanCMakeFlags = ["--preset", "release"]
+defaultLeanCMakeFlags = ["--preset=release"]
 
 -- | Default flags to pass to @make@ when compiling lean.
 defaultLeanMakeFlags :: [String]
 defaultLeanMakeFlags = []
+
+-- | Docs for the @install-lean@ rule.
+leanInstallDocs :: String
+leanInstallDocs = unlines
+  [ "Install a version of lean."
+  , ""
+  , "Can be configured with the following environment variables:"
+  , "* $LEAN_VERSION: select the revision of lean to install."
+  , "  Defaults to " <> defaultLeanInstallRev
+  , "* $LEAN_CMAKE_FLAGS: pass flags to cmake when building lean."
+  , "  Arguments should be separated by spaces."
+  , "  Defaults to " <> unwords defaultLeanCMakeFlags
+  , "* $LEAN_MAKE_FLAGS: pass flags to make when building lean."
+  , "  Arguments should be separated by spaces."
+  , "  Defaults to " <> unwords defaultLeanMakeFlags
+  ]
+
+-- | Get the version of @lean@ to install from the @$LEAN_VERSION@ environment variable.
+needLeanInstallRev :: Action String
+needLeanInstallRev = getEnvWithDefault defaultLeanInstallRev "LEAN_VERSION"
+
+-- | Get cmake flags to build @lean@ from the @$LEAN_CMAKE_FLAGS@ environment variable.
+needLeanCMakeFlags :: Action [String]
+needLeanCMakeFlags = maybe defaultLeanCMakeFlags words <$> getEnv "LEAN_CMAKE_FLAGS"
+
+-- | Get make flags to build @lean@ from the @$LEAN_MAKE_FLAGS@ environment variable.
+needLeanMakeFlags :: Action [String]
+needLeanMakeFlags = maybe defaultLeanMakeFlags words <$> getEnv "LEAN_MAKE_FLAGS"
+
+-- | Get install options for @lean@ from environment variables.
+needLeanInstallOpts :: Action LeanQ
+needLeanInstallOpts = do
+  leanInstallRev <- needLeanInstallRev
+  leanCMakeFlags <- needLeanCMakeFlags
+  leanMakeFlags <- needLeanMakeFlags
+  pure LeanQ {..}
 
 -- | Oracle for installing a version of Lean 4.
 --
@@ -101,6 +143,12 @@ leanDoctor leanQ = do
 leanRules :: Rules ()
 leanRules = do
   addStoreOracle "lean" leanInstall
+
+  withTargetDocs leanInstallDocs $ phony "install-lean" do
+    opts <- needLeanInstallOpts
+    _ <- needLean opts
+    pure ()
+
   phony "clean-lean" do
     removeFilesAfter "_build/repos" ["lean-*"]
     removeFilesAfter "_build/store" ["lean-*"]
