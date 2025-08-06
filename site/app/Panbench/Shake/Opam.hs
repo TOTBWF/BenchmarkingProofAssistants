@@ -135,12 +135,11 @@ parseOpamEnv :: OpamSwitch -> String -> Action OpamEnvA
 parseOpamEnv opamEnvSwitch envStr = do
   case parseSExpr envStr of
     Just envSexpr -> do
-      envVars <- parseEnvVars envStr envSexpr
+      opamEnvVars <- parseEnvVars envStr envSexpr
       path <- askPath
-      let opamEnvPath = splitSearchPath $ fromMaybe "" $ lookup "PATH" envVars
+      let opamEnvPath = splitSearchPath $ fromMaybe "" $ lookup "PATH" opamEnvVars
       let opamEnvPathPrefix = diffPathPrefix opamEnvPath path
       let opamEnvPathSuffix = diffPathSuffix opamEnvPath path
-      let opamEnvVars = filter (\(var, _) -> var /= "PATH") envVars
       pure OpamEnvA {..}
     Nothing ->
       fail $ unlines $

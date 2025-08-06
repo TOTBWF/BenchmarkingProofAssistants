@@ -11,6 +11,8 @@ module Panbench.Shake.Lang.Rocq
   , rocqRules
   ) where
 
+import Data.List
+
 import Development.Shake
 import Development.Shake.Classes
 
@@ -54,8 +56,8 @@ rocqInstallOracle RocqQ{..} storeDir = do
     , gitWorktreeDir = workDir
     , gitWorktreeRev = rocqInstallRev
     }
-  withOpamSwitch (LocalSwitch workDir) ["--packages=" ++ rocqOcamlCompiler, "--no-install"] \opamEnv -> do
-    needsOpamInstall_ opamEnv ["dune", "ocamlfind", "zarith"]
+  let rocqSwitchPkgs = intercalate "," [rocqOcamlCompiler, "dune", "ocamlfind", "zarith"]
+  withOpamSwitch (LocalSwitch workDir) ["--packages=" ++ rocqSwitchPkgs, "--no-install"] \opamEnv -> do
     command_ (opamEnvOpts opamEnv) "./configure" ["-prefix", storeDir]
     makeCommand_ (opamEnvOpts opamEnv) ["dunestrap"]
     -- We need to use @NJOBS@ over @-j@, see @dev/doc/build-system.dune.md@ for details.

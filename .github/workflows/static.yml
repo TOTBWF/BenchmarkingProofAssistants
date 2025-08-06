@@ -106,7 +106,7 @@ jobs:
           restore-keys: ${{ env.key }}-
 
       - name: Build 🛠️
-        run: cabal run panbench-site -- _build/site/index.html
+        run: cabal run panbench-site -- install-rocq
 
       - name: Cache store 💾
         uses: actions/cache/save@v4
