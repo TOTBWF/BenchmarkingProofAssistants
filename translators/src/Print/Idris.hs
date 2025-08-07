@@ -16,10 +16,6 @@ import Print.Generic
 newtype Idris ann = Idris {get :: P.Doc ann}
   deriving newtype (Semigroup, Monoid)
 
-instance HasDoc Idris where
-  doc = get
-  build = Idris
-
 instance IsString (Idris ann) where
   fromString s = Idris $ P.pretty s
 

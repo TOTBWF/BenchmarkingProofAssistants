@@ -17,10 +17,6 @@ import Print.Generic
 newtype Rocq ann = Rocq {get :: P.Doc ann}
   deriving newtype (Semigroup, Monoid)
 
-instance HasDoc Rocq where
-  doc = get
-  build = Rocq
-
 instance IsString (Rocq ann) where
   fromString s = Rocq $ P.pretty s
 

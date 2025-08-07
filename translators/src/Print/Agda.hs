@@ -16,10 +16,6 @@ import Print.Generic
 newtype Agda ann = Agda {get :: P.Doc ann}
   deriving newtype (Semigroup, Monoid)
 
-instance HasDoc Agda where
-  doc = get
-  build = Agda
-
 instance IsString (Agda ann) where
   fromString s = Agda $ P.pretty s
 

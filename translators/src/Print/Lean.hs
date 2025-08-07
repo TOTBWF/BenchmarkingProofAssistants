@@ -16,10 +16,6 @@ import Print.Generic
 newtype Lean ann = Lean {get :: P.Doc ann}
   deriving newtype (Semigroup, Monoid)
 
-instance HasDoc Lean where
-  doc = get
-  build = Lean
-
 instance IsString (Lean ann) where
   fromString s = Lean $ P.pretty s
 
