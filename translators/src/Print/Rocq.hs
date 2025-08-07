@@ -15,17 +15,11 @@ import Grammar
 import Print.Generic
 
 newtype Rocq ann = Rocq {get :: P.Doc ann}
+  deriving newtype (Semigroup, Monoid)
 
 instance HasDoc Rocq where
   doc = get
   build = Rocq
-
--- needs to be declared here because generic instance overlaps too much
-instance Semigroup (Rocq ann) where
-  a <> b = Rocq $ (get a) <> (get b)
-
-instance Monoid (Rocq ann) where
-  mempty = emptyDoc
 
 instance IsString (Rocq ann) where
   fromString s = Rocq $ P.pretty s

@@ -14,17 +14,11 @@ import Grammar
 import Print.Generic
 
 newtype Idris ann = Idris {get :: P.Doc ann}
+  deriving newtype (Semigroup, Monoid)
 
 instance HasDoc Idris where
   doc = get
   build = Idris
-
--- needs to be declared here because generic instance overlaps too much
-instance Semigroup (Idris ann) where
-  a <> b = Idris $ (get a) <> (get b)
-
-instance Monoid (Idris ann) where
-  mempty = emptyDoc
 
 instance IsString (Idris ann) where
   fromString s = Idris $ P.pretty s

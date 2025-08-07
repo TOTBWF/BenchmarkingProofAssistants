@@ -14,17 +14,11 @@ import Grammar
 import Print.Generic
 
 newtype Agda ann = Agda {get :: P.Doc ann}
+  deriving newtype (Semigroup, Monoid)
 
 instance HasDoc Agda where
   doc = get
   build = Agda
-
--- needs to be declared here because generic instance overlaps too much
-instance Semigroup (Agda ann) where
-  a <> b = Agda $ (get a) <> (get b)
-
-instance Monoid (Agda ann) where
-  mempty = emptyDoc
 
 instance IsString (Agda ann) where
   fromString s = Agda $ P.pretty s

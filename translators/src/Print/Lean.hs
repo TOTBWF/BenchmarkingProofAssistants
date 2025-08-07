@@ -14,17 +14,11 @@ import Grammar
 import Print.Generic
 
 newtype Lean ann = Lean {get :: P.Doc ann}
+  deriving newtype (Semigroup, Monoid)
 
 instance HasDoc Lean where
   doc = get
   build = Lean
-
--- needs to be declared here because generic instance overlaps too much
-instance Semigroup (Lean ann) where
-  a <> b = Lean $ (get a) <> (get b)
-
-instance Monoid (Lean ann) where
-  mempty = emptyDoc
 
 instance IsString (Lean ann) where
   fromString s = Lean $ P.pretty s
