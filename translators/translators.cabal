@@ -19,6 +19,7 @@ common extensions
        DeriveAnyClass,
        DeriveGeneric,
        DerivingStrategies,
+       GeneralizedNewtypeDeriving,
        ImportQualifiedPost,
        LambdaCase,
        OverloadedStrings
