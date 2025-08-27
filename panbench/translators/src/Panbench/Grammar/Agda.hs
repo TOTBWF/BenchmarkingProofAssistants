@@ -12,6 +12,8 @@ import Data.Text (Text)
 
 import Data.String (IsString(..))
 
+import Numeric.Natural
+
 import Panbench.Grammar
 import Panbench.Pretty
 
@@ -61,23 +63,14 @@ instance Term (Agda ann) where
   univ = "Set"
   parens = enclose "(" ")"
 
-instance NatLiteral (Agda ann) where
-  nat n = pretty n
-
-instance ListLiteral (Agda ann) where
-  list xs = sep (punctuate (doc "∷") xs) <\?> "[]"
-
-instance VecLiteral (Agda ann) where
-  vec xs = sep (punctuate (doc "∷") xs) <\?> "[]"
-
-instance StringLiteral (Agda ann) where
-  string x = doubleQuote (pretty x)
-
 instance Builtin (Agda ann) "+" (Agda ann -> Agda ann -> Agda ann) where
   mkBuiltin x y = x <+> "+" <+> y
 
 instance Builtin (Agda ann) "suc" (Agda ann -> Agda ann) where
   mkBuiltin x = "suc" <+> x
+
+instance Literal (Agda ann) "Nat" Natural where
+  mkLit = pretty
 
 --------------------------------------------------------------------------------
 -- Definitions

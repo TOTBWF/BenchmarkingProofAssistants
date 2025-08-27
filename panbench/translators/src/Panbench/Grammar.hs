@@ -21,33 +21,22 @@ module Panbench.Grammar
   -- * Terms
   , LetDef(..)
   , Term(..)
-  -- ** Literals
-  , NatLiteral(..)
-  , ListLiteral(..)
-  , VecLiteral(..)
-  , StringLiteral(..)
-  , BoolLiteral
-  , bool
   -- * Patterns
   , Pattern(..)
   , Clause(..)
   -- * Definitions
   , Constr(..)
   , Module(..)
-  -- * Operators and Builtins
-  , Literal(..)
-  , lit
-  , Builtin(..)
-  , builtin
-  , constant
-  , Constant
-  , Op1
-  , op1
-  , Op2
-  , op2
+  -- * Operators, Builtins, and literals
+  , Builtin(..) , builtin
+  -- ** Builtin shorthands
+  , Constant , constant
+  , Op1 , op1
+  , Op2 , op2
+  , Literal(..) , lit
+  , nat, list, vec, string
   -- * Imports
-  , Import(..)
-  , import_
+  , Import(..) , import_
   -- * Helpers
   , vars
   , varN
@@ -61,9 +50,6 @@ import Data.Text (Text)
 import Data.Text qualified as T
 
 import GHC.TypeLits
-
-import Panbench.Data.List.Bwd (Bwd)
-import Panbench.Data.List.Bwd qualified as Bwd
 
 --------------------------------------------------------------------------------
 -- Names
@@ -124,52 +110,34 @@ class Term (rep :: Type) where
   parens :: rep -> rep
 
 --------------------------------------------------------------------------------
--- Literals
-
-class NatLiteral (rep :: Type) where
-  -- | Natural number literals.
-  --
-  -- We will attempt to translate these as literals like @100@
-  -- instead of @succ@ and @zero@ constructors.
-  nat :: Natural -> rep
-
-class ListLiteral (rep :: Type) where
-  -- | List literals.
-  --
-  -- We will attempt to translate these as literals like @[x, y, z]@
-  -- as opposed to cons constructors.
-  list :: [rep] -> rep
-
-class VecLiteral (rep :: Type) where
-  -- | Vector literals.
-  --
-  -- We will attempt to translate these as literals like @[x, y, z]@
-  -- as opposed to cons constructors.
-  vec :: [rep] -> rep
-
-class StringLiteral (rep :: Type) where
-  -- | String literals.
-  string :: Text -> rep
-
--- | Boolean literals do not require special support, and we can handle
--- them via 'Builtin'.
-type BoolLiteral rep = (Builtin rep "true" rep, Builtin rep "false" rep)
-
--- | Boolean literals.
-bool :: (BoolLiteral rep) => Bool -> rep
-bool b = if b then builtin "true" else builtin "false"
-
---------------------------------------------------------------------------------
 -- Operators and Builtins
 
+-- | Builtins
+--
+-- We want to be able to be polymorphic over the builtin-constructs of a language,
+-- *and* be able to separately dispatch on builtins when defining a language instance.
+-- For example, one language might call the @List@ built-in @List A@, another @[A]@, and so on.
+-- Moreover, we don't want to have to define a new class per built-in: this gets really cumbersome
+-- really fast, and means that users might end up having to roll their own built-in classes, which
+-- is not very good.
+--
+-- In light of this, we define a single 'Builtin' class that lets us dispatch on a statically known
+-- 'Symbol'. We also allow the return type to vary, which lets us implement things like builtin infix operators
+-- in a natural way via @Builtin rep "+" (rep -> rep -> rep)@.
 class (KnownSymbol op) => Builtin (rep :: Type) (op :: Symbol) (tp :: Type) | rep op -> tp, op tp -> rep where
+  -- | Make a builtin of a given type.
+  --
+  -- When writing generators, users are encouraged to use 'builtin' instead, as it
+  -- has *much* better inference.
   mkBuiltin :: tp
 
+-- | Construct a builtin term.
 builtin :: forall rep tp. forall op -> (Builtin rep op tp) => tp
 builtin o = mkBuiltin @rep @o @tp
 
 type Constant rep op = Builtin rep op rep
 
+-- | Shorthand for a builtin that doesn't have any arguments.
 constant :: forall op -> Constant rep op => rep
 constant = builtin
 
@@ -181,9 +149,42 @@ op1 = builtin
 
 type Op2 rep op = Builtin rep op (rep -> rep -> rep)
 
+-- | Shorthand for a binary operator.
 op2 :: forall op -> Op2 rep op => rep -> rep -> rep
 op2 = builtin
 
+-- | Literals
+--
+-- Literals work like 'Builtin', but with a slight twist.
+-- Instead of a single @mkBuiltin :: tp@ method, the 'Literal' class
+-- has a single @mkLit :: tp -> rep@ method, which reflects that literals
+-- must always be built out of *something*. This also leads to marginally better inference.
+class (KnownSymbol sym) => Literal (rep :: Type) (sym :: Symbol) (tp :: Type) | rep sym -> tp where
+  -- | Make a builtin of a given type.
+  --
+  -- When writing generators, users are encouraged to use 'lit' instead, as it
+  -- has *much* better inference.
+  mkLit :: tp -> rep
+
+-- | Construct a literal term.
+lit :: forall sym -> Literal rep sym tp => tp -> rep
+lit sym x = mkLit @_ @sym x
+
+-- | Construct a @Nat@ literal.
+nat :: (Literal rep "Nat" Natural) => Natural -> rep
+nat = lit "Nat"
+
+-- | Construct a @List@ literal.
+list :: (Literal rep "List" [rep]) => [rep] -> rep
+list = lit "List"
+
+-- | Construct a @Vec@ literal.
+vec :: (Literal rep "Vec" [rep]) => [rep] -> rep
+vec = lit "Vec"
+
+-- | Construct a @String@ literal.
+string :: (Literal rep "String" Text) => Text -> rep
+string = lit "String"
 
 --------------------------------------------------------------------------------
 -- Patterns
@@ -232,6 +233,9 @@ class (KnownSymbol i) => Import (m :: Type) (i :: Symbol) where
 
 import_ :: forall i -> (Import m i) => m
 import_ i = mkImport @_ @i
+
+--------------------------------------------------------------------------------
+-- Common constraints
 
 --------------------------------------------------------------------------------
 -- Helpers
