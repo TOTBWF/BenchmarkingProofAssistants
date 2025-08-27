@@ -61,6 +61,18 @@ instance Term (Agda ann) where
   univ = "Set"
   parens = enclose "(" ")"
 
+instance NatLiteral (Agda ann) where
+  nat n = pretty n
+
+instance ListLiteral (Agda ann) where
+  list xs = sep (punctuate (doc "∷") xs) <\?> "[]"
+
+instance VecLiteral (Agda ann) where
+  vec xs = sep (punctuate (doc "∷") xs) <\?> "[]"
+
+instance StringLiteral (Agda ann) where
+  string x = doubleQuote (pretty x)
+
 instance Builtin (Agda ann) "+" (Agda ann -> Agda ann -> Agda ann) where
   mkBuiltin x y = x <+> "+" <+> y
 

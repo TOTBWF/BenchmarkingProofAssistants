@@ -21,6 +21,13 @@ module Panbench.Grammar
   -- * Terms
   , LetDef(..)
   , Term(..)
+  -- ** Literals
+  , NatLiteral(..)
+  , ListLiteral(..)
+  , VecLiteral(..)
+  , StringLiteral(..)
+  , BoolLiteral
+  , bool
   -- * Patterns
   , Pattern(..)
   , Clause(..)
@@ -112,6 +119,41 @@ class Term (rep :: Type) where
   -- | Explicit parentheses.
   parens :: rep -> rep
 
+--------------------------------------------------------------------------------
+-- Literals
+
+class NatLiteral (rep :: Type) where
+  -- | Natural number literals.
+  --
+  -- We will attempt to translate these as literals like @100@
+  -- instead of @succ@ and @zero@ constructors.
+  nat :: Natural -> rep
+
+class ListLiteral (rep :: Type) where
+  -- | List literals.
+  --
+  -- We will attempt to translate these as literals like @[x, y, z]@
+  -- as opposed to cons constructors.
+  list :: [rep] -> rep
+
+class VecLiteral (rep :: Type) where
+  -- | Vector literals.
+  --
+  -- We will attempt to translate these as literals like @[x, y, z]@
+  -- as opposed to cons constructors.
+  vec :: [rep] -> rep
+
+class StringLiteral (rep :: Type) where
+  -- | String literals.
+  string :: Text -> rep
+
+-- | Boolean literals do not require special support, and we can handle
+-- them via 'Builtin'.
+type BoolLiteral rep = (Builtin rep "true" rep, Builtin rep "false" rep)
+
+-- | Boolean literals.
+bool :: (BoolLiteral rep) => Bool -> rep
+bool b = if b then builtin "true" else builtin "false"
 
 --------------------------------------------------------------------------------
 -- Operators and Builtins
@@ -140,7 +182,6 @@ op2 = builtin
 data Pattern rep
   = ConPat Visibility Name [Pattern rep]
   | VarPat Visibility Name
-
 
 data Clause rep = Clause { clausePats :: [Pattern rep], clauseBody :: rep }
 

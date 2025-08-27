@@ -21,6 +21,7 @@ module Panbench.Pretty
   , align
   , nest
   , hang
+  , doubleQuote
   -- ** Binary Combinators
   , (<+>)
   , (<\?>)
@@ -36,6 +37,7 @@ module Panbench.Pretty
   , hsepMap
   , vcatMap
   , hardlinesMap
+  , punctuate
   -- * Re-exports
   , P.Doc
   ) where
@@ -52,6 +54,15 @@ type IsDoc (doc :: Type -> Type) = forall ann. Coercible (P.Doc ann) (doc ann)
 
 doc :: (IsDoc doc) => P.Doc ann -> doc ann
 doc = coerce
+
+undoc :: (IsDoc doc) => doc ann -> P.Doc ann
+undoc = coerce
+
+docs ::(IsDoc doc) => [P.Doc ann] -> [doc ann]
+docs = coerce
+
+undocs :: (IsDoc doc) => [doc ann] -> [P.Doc ann]
+undocs = coerce
 
 pretty :: forall a doc ann. (P.Pretty a, IsDoc doc) => a -> doc ann
 pretty x = coerce @(P.Doc ann) @_ (P.pretty x)
@@ -94,6 +105,9 @@ nest n = liftDoc1 (P.nest n)
 
 hang :: (IsDoc doc) => Int -> doc ann -> doc ann
 hang n = liftDoc1 (P.hang n)
+
+doubleQuote :: (IsDoc doc) => doc ann -> doc ann
+doubleQuote = enclose (doc "\"") (doc "\"")
 
 --------------------------------------------------------------------------------
 -- Binary Combinators
@@ -149,3 +163,6 @@ hsepMap f = foldr (\a doc -> f a <+> doc) (doc mempty)
 
 hardlinesMap :: (IsDoc doc, Foldable t) => (a -> doc ann) -> t a -> doc ann
 hardlinesMap f = foldr (\a doc -> f a <\> doc) (doc mempty)
+
+punctuate :: forall doc ann. (IsDoc doc) => doc ann -> [doc ann] -> [doc ann]
+punctuate p xs = docs (P.punctuate (undoc p) (undocs xs))
