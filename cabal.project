@@ -9,6 +9,6 @@ if(impl(ghc >= 9.12.0))
       tag: c69037e5e2d150bcb79be366d081688ad00e4c71
 
 packages:
-    translators/translators.cabal
-    generators/panbench-generators.cabal
-    site/panbench-site.cabal
+    panbench/translators/translators.cabal
+    panbench/generators/panbench-generators.cabal
+    panbench/site/panbench-site.cabal
