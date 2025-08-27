@@ -94,7 +94,8 @@ constructors =
 
 
 instance (Module (Agda ann) (Agda ann)) where
-  defFn nm tp body =
+  moduleHeader modNm = "module" <+> pretty modNm <+> "where" <> hardline
+  defTm nm tp body =
     hardlines
     [ pretty nm <+> ":" <+> tp
     , pretty nm <+> "=" <\?> nest 2 body

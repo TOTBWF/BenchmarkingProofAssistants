@@ -35,8 +35,12 @@ module Panbench.Grammar
   , Constr(..)
   , Module(..)
   -- * Operators and Builtins
+  , Literal(..)
+  , lit
   , Builtin(..)
   , builtin
+  , constant
+  , Constant
   , Op1
   , op1
   , Op2
@@ -46,7 +50,7 @@ module Panbench.Grammar
   , import_
   -- * Helpers
   , vars
-  , lets_
+  , varN
   ) where
 
 import Numeric.Natural
@@ -164,6 +168,11 @@ class (KnownSymbol op) => Builtin (rep :: Type) (op :: Symbol) (tp :: Type) | re
 builtin :: forall rep tp. forall op -> (Builtin rep op tp) => tp
 builtin o = mkBuiltin @rep @o @tp
 
+type Constant rep op = Builtin rep op rep
+
+constant :: forall op -> Constant rep op => rep
+constant = builtin
+
 type Op1 rep op = Builtin rep op (rep -> rep)
 
 -- | Shorthand for a unary operator.
@@ -191,11 +200,22 @@ data Clause rep = Clause { clausePats :: [Pattern rep], clauseBody :: rep }
 data Constr rep = Constr { constrName :: Name, constrTp :: rep }
 
 class (Term rep, Monoid m) => Module (rep :: Type) (m :: Type) | rep -> m, m -> rep where
-  -- | Module of a (possibly nullary) function.
-  defFn     :: Name -> rep -> rep -> m
+  -- | Module header.
+  moduleHeader :: Text -> m
 
-  -- | Module via pattern matching.
-  defMatch :: Name -> rep -> [Clause rep] -> m
+  -- | Module with a single (possibly nullary) term.
+  defTm
+    :: Name -- ^ The name of the definition.
+    -> rep  -- ^ Type of the term.
+    -> rep  -- ^ Definition of the term.
+    -> m
+
+  -- | Module with a single definition created via pattern matching.
+  defMatch
+    :: Name -- ^ The name of the definition.
+    -> rep -- ^ The type of the defininition
+    -> [Clause rep] -- ^ Pattern matching clauses
+    -> m
 
   -- | Define a datatype.
   defData
@@ -221,6 +241,6 @@ import_ i = mkImport @_ @i
 vars :: (Term rep) => Name -> [Natural] -> [rep]
 vars x ns = var <$> names x ns
 
--- | HOAS form of a sequence of let bindings.
-lets_ :: (Term rep) => [(Name, rep)] -> (Bwd rep -> rep) -> rep
-lets_ = Bwd.scoped (\(x, e) -> let_ [SynLetDef x [] e]) (\(x, _) -> var x)
+-- | Shorthand for @xn@ where @x@ is a name and @n@ is a natural number.
+varN :: (Term rep) => Name -> Natural -> rep
+varN x n = var (name x n)
