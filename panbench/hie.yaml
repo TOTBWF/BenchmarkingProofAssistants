@@ -1,9 +1,9 @@
 cradle:
   cabal:
-    - path: "generators/./LetExample.hs"
+    - path: "generators/app/LetExample.hs"
       component: "panbench-generators:exe:LetExample"
 
-    - path: "generators/./LetAddExample.hs"
+    - path: "generators/app/LetAddExample.hs"
       component: "panbench-generators:exe:LetAddExample"
 
     - path: "site/app/Main.hs"
