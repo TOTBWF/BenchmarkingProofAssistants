@@ -1,168 +1,172 @@
 module Print.Agda
-  ( printModule
-  , render
-  , runAgda
-  ) where
+  ( Agda(..)
+  )
+  where
+  -- ( printModule
+  -- , render
+  -- , runAgda
+  -- ) where
 
 import Data.String (IsString(..))
-import qualified Data.Text as T
-import qualified Data.Text.IO as T (writeFile)
-import qualified Prettyprinter as P
-import Prettyprinter.Render.Text (renderStrict)
+import Data.Text qualified as T
 
-import Grammar
-import Print.Generic
+import Panbench.Grammar
+import Panbench.Pretty
 
-newtype Agda ann = Agda {get :: P.Doc ann}
+newtype Agda ann = Agda { getAgda :: Doc ann }
   deriving newtype (Semigroup, Monoid)
 
 instance IsString (Agda ann) where
-  fromString s = Agda $ P.pretty s
+  fromString s = Agda $ pretty s
 
-instance Keywords (Agda ann) where
-  import_ = "open" <+> "import"
-  assign  = Agda "="
-  recrd   = Agda "record"
-  univ    = Agda "Set"
-  data_   = Agda "data"
-  arr     = Agda "->"
-  lcons   = Agda "\x2237"
-  vcons   = Agda "\x2237"
-  typesep = Agda ":"
-  natT    = Agda "Nat"
-  strT    = Agda "String"
-  vectT   = Agda "Vec"
+-- instance Term (Agda ann) where
+--   var x = __
+--   arr xs y = __ <+> arrow <+> y
 
-instance TypeAnn (Agda ann) where
-  typeAnn trm typ = trm <+> typesep <+> typ
-  teleCell Explicit trm typ = parens $ trm <+> typesep <+> typ
-  teleCell Implicit trm typ = braces $ trm <+> typesep <+> typ
+-- instance Keywords (Agda ann) where
+--   import_ = "open" <+> "import"
+--   assign  = Agda "="
+--   recrd   = Agda "record"
+--   univ    = Agda "Set"
+--   data_   = Agda "data"
+--   arr     = Agda "->"
+--   lcons   = Agda "\x2237"
+--   vcons   = Agda "\x2237"
+--   typesep = Agda ":"
+--   natT    = Agda "Nat"
+--   strT    = Agda "String"
+--   vectT   = Agda "Vec"
 
-printImport :: Import -> Agda ann
-printImport (ImportLib NatMod) = import_ <+> "Agda.Builtin.Nat"
-printImport (ImportLib VecMod) = import_ <+> "Data.Vec.Base"
-printImport (ImportLib ListMod) = import_ <+> "Agda.Builtin.List"
-printImport (ImportLib StringMod) = import_ <+> "Agda.Builtin.String"
+-- instance TypeAnn (Agda ann) where
+--   typeAnn trm typ = trm <+> typesep <+> typ
+--   teleCell Explicit trm typ = parens $ trm <+> typesep <+> typ
+--   teleCell Implicit trm typ = braces $ trm <+> typesep <+> typ
 
-printArgL :: Arg [ Name ] Tm -> Agda ann
-printArgL (Arg [] t _) = printTm t
-printArgL (Arg l@(_:_) t v) = teleCell v (hsep $ map pretty l)  (printTm t)
+-- printImport :: Import -> Agda ann
+-- printImport (ImportLib NatMod) = import_ <+> "Agda.Builtin.Nat"
+-- printImport (ImportLib VecMod) = import_ <+> "Data.Vec.Base"
+-- printImport (ImportLib ListMod) = import_ <+> "Agda.Builtin.List"
+-- printImport (ImportLib StringMod) = import_ <+> "Agda.Builtin.String"
 
--- Print Terms
-printTm :: Tm -> Agda ann
-printTm (Univ) = univ
-printTm (Pi lt t) = foldr (\a d -> printArgL a <+> arr <+> d) (printTm t) lt
-printTm (Arr t1 t2) = printArgL t1 <+> arr <+> printTm t2
-printTm (PCon t []) = pretty t
-printTm (PCon name types) = pretty name <+> hsep (map printTm types)
-printTm (DCon t []) = pretty t
-printTm (DCon name types) = pretty name <+> hsep (map printTm types)
-printTm (Var var) = pretty var
-printTm (Paren e) = parens $ printTm e
-printTm (Binary op e1 e2) = printTm e1 <+> printOp2 op <+> printTm e2
-printTm (Let ds expr) =
-  "let" <+> align (vcat (map printLocalDefn ds) <+> "in") <> line <>
-  printTm expr
-printTm (App fun args) = printTm fun <+> softline' <> (sep $ map printTm args)
-printTm (Unary o t) = parens $ printOp1 o <+> printTm t
-printTm (Lit l) = printLit l
-printTm (KCon NatT _) = natT
-printTm (KCon StringT _) = strT
-printTm (KCon VecT l) = vectT <+> hsep (map printTm l)
+-- printArgL :: Arg [ Name ] Tm -> Agda ann
+-- printArgL (Arg [] t _) = printTm t
+-- printArgL (Arg l@(_:_) t v) = teleCell v (hsep $ map pretty l)  (printTm t)
 
-printOp1 :: Op1 -> Agda ann
-printOp1 Suc = "suc"
+-- -- Print Terms
+-- printTm :: Tm -> Agda ann
+-- printTm (Univ) = univ
+-- printTm (Pi lt t) = foldr (\a d -> printArgL a <+> arr <+> d) (printTm t) lt
+-- printTm (Arr t1 t2) = printArgL t1 <+> arr <+> printTm t2
+-- printTm (PCon t []) = pretty t
+-- printTm (PCon name types) = pretty name <+> hsep (map printTm types)
+-- printTm (DCon t []) = pretty t
+-- printTm (DCon name types) = pretty name <+> hsep (map printTm types)
+-- printTm (Var var) = pretty var
+-- printTm (Paren e) = parens $ printTm e
+-- printTm (Binary op e1 e2) = printTm e1 <+> printOp2 op <+> printTm e2
+-- printTm (Let ds expr) =
+--   "let" <+> align (vcat (map printLocalDefn ds) <+> "in") <> line <>
+--   printTm expr
+-- printTm (App fun args) = printTm fun <+> softline' <> (sep $ map printTm args)
+-- printTm (Unary o t) = parens $ printOp1 o <+> printTm t
+-- printTm (Lit l) = printLit l
+-- printTm (KCon NatT _) = natT
+-- printTm (KCon StringT _) = strT
+-- printTm (KCon VecT l) = vectT <+> hsep (map printTm l)
 
-printOp2 :: Op2 -> Agda ann
-printOp2 Plus = "+"
+-- printOp1 :: Op1 -> Agda ann
+-- printOp1 Suc = "suc"
 
-printFieldT :: FieldT -> Agda ann
-printFieldT (FieldT fname ftype) = typeAnn (pretty fname) (printTm ftype)
+-- printOp2 :: Op2 -> Agda ann
+-- printOp2 Plus = "+"
 
-printFieldDecl :: FieldDecl -> Agda ann
-printFieldDecl (FieldDecl fields) = vsep $ map printFieldT fields
+-- printFieldT :: FieldT -> Agda ann
+-- printFieldT (FieldT fname ftype) = typeAnn (pretty fname) (printTm ftype)
 
-printConstr :: Constr -> Agda ann
-printConstr (Constr nm ty) = typeAnn (pretty nm) (printTm ty)
+-- printFieldDecl :: FieldDecl -> Agda ann
+-- printFieldDecl (FieldDecl fields) = vsep $ map printFieldT fields
 
-printDataConst :: DataCons -> Agda aa
-printDataConst (DataCons l) = vsep $ map printConstr l
+-- printConstr :: Constr -> Agda ann
+-- printConstr (Constr nm ty) = typeAnn (pretty nm) (printTm ty)
 
-printCase :: Name -> Pat -> Agda ann
-printCase var (Pat a e) = pretty var <+> (hsep $ map (pretty . arg) a) <+> assign <+> printTm e
+-- printDataConst :: DataCons -> Agda aa
+-- printDataConst (DataCons l) = vsep $ map printConstr l
 
-printMatch :: Name -> Patterns -> Agda ann
-printMatch nm (Patterns p) = vsep (map (printCase nm) p)
+-- printCase :: Name -> Pat -> Agda ann
+-- printCase var (Pat a e) = pretty var <+> (hsep $ map (pretty . arg) a) <+> assign <+> printTm e
 
-printLit :: Literal -> Agda ann
-printLit (Nat n) = pretty n
-printLit (Bool b) = pretty b
-printLit (String str) = dquotes $ pretty str
-printLit (Vec l) = parens $ encloseSep emptyDoc (space <> vcons <+> lbracket <> rbracket)
-  (space <> vcons <> space) (map printTm l)
-printLit (List l) = parens $ encloseSep emptyDoc (space <> lcons <+> lbracket <> rbracket)
-  (space <> lcons <> space) (map printTm l)
+-- printMatch :: Name -> Patterns -> Agda ann
+-- printMatch nm (Patterns p) = vsep (map (printCase nm) p)
 
-printLocalDefn :: LocalDefn -> Agda ann
-printLocalDefn (LocDefFun var ty args expr) =
-   typeSig <> tvar <+> assign <+> align (printTm expr)
-    where
-        typeSig = case ty of
-            Just t -> typeAnn (pretty var) ((hsep $ punctuate (space <> arr) $ map (printTm . argty) args) <+> arr <+> printTm t) <> line
-            Nothing -> mempty
-        tvar = case args of
-            [] -> pretty var
-            (_:_) -> pretty var <+> (hsep $ map (pretty . arg) args)
+-- printLit :: Literal -> Agda ann
+-- printLit (Nat n) = pretty n
+-- printLit (Bool b) = pretty b
+-- printLit (String str) = dquotes $ pretty str
+-- printLit (Vec l) = parens $ encloseSep emptyDoc (space <> vcons <+> lbracket <> rbracket)
+--   (space <> vcons <> space) (map printTm l)
+-- printLit (List l) = parens $ encloseSep emptyDoc (space <> lcons <+> lbracket <> rbracket)
+--   (space <> lcons <> space) (map printTm l)
 
--- Function to print variable definitions
-printDef :: Definition -> Agda ann
-printDef (DefTVar var t expr) =
-  typeAnn (pretty var) (printTm t) <> hardline <>
-  pretty var <+> assign <+> align (printTm expr) <> hardline
+-- printLocalDefn :: LocalDefn -> Agda ann
+-- printLocalDefn (LocDefFun var ty args expr) =
+--    typeSig <> tvar <+> assign <+> align (printTm expr)
+--     where
+--         typeSig = case ty of
+--             Just t -> typeAnn (pretty var) ((hsep $ punctuate (space <> arr) $ map (printTm . argty) args) <+> arr <+> printTm t) <> line
+--             Nothing -> mempty
+--         tvar = case args of
+--             [] -> pretty var
+--             (_:_) -> pretty var <+> (hsep $ map (pretty . arg) args)
 
-printDef (DefPatt var ty _ cons) = typeAnn (pretty var) (printTm ty) <> line <> printMatch var cons
+-- -- Function to print variable definitions
+-- printDef :: Definition -> Agda ann
+-- printDef (DefTVar var t expr) =
+--   typeAnn (pretty var) (printTm t) <> hardline <>
+--   pretty var <+> assign <+> align (printTm expr) <> hardline
 
--- Function to print datatype definitions
-printDef (DefPDataType name params cons ty) =
-  data_ <+> typeAnn (pParams params) (printTm ty) <+> "where" <> hardline <>
-    indent 1 (printDataConst cons) <> hardline
-    where
-      pParams [] = pretty name
-      pParams _  = pretty name <+> hsep (map (\(Arg x y v) -> teleCell v (pretty x) (printTm y)) params)
+-- printDef (DefPatt var ty _ cons) = typeAnn (pretty var) (printTm ty) <> line <> printMatch var cons
 
--- Function for records
-printDef (DefRecType name params consName fields _) =
-    recrd <+> typeAnn pp_params univ <+> "where" <> line <>
-    indent 4 (vsep $ "constructor" <+> pretty consName : "field" : (indent 4 $ printFieldDecl fields) : []) <>
-    hardline
-    where
-      ll = map (\(Arg n t v) -> teleCell v (pretty n) (printTm t)) params
-      pp_params = if null params then pretty name else pretty name <+> hsep ll
+-- -- Function to print datatype definitions
+-- printDef (DefPDataType name params cons ty) =
+--   data_ <+> typeAnn (pParams params) (printTm ty) <+> "where" <> hardline <>
+--     indent 1 (printDataConst cons) <> hardline
+--     where
+--       pParams [] = pretty name
+--       pParams _  = pretty name <+> hsep (map (\(Arg x y v) -> teleCell v (pretty x) (printTm y)) params)
 
-printDef (DefRec name recTm consName (FieldDef fields)) =
-    typeAnn (pretty name) (printTm recTm) <> hardline <>
-    pretty name <+> assign <+> pretty consName <+> nest 4 (sep (map (printTm . fval) fields))
+-- -- Function for records
+-- printDef (DefRecType name params consName fields _) =
+--     recrd <+> typeAnn pp_params univ <+> "where" <> line <>
+--     indent 4 (vsep $ "constructor" <+> pretty consName : "field" : (indent 4 $ printFieldDecl fields) : []) <>
+--     hardline
+--     where
+--       ll = map (\(Arg n t v) -> teleCell v (pretty n) (printTm t)) params
+--       pp_params = if null params then pretty name else pretty name <+> hsep ll
 
-printDef (OpenName _) = mempty
-printDef (Separator '\n' n _) = vcat $ replicate (fromIntegral n) emptyDoc
-printDef (Separator c n b) =
-  let s = hcat $ replicate (fromIntegral n) (pretty c) in
-  if b then hardline <> s <> hardline else s
+-- printDef (DefRec name recTm consName (FieldDef fields)) =
+--     typeAnn (pretty name) (printTm recTm) <> hardline <>
+--     pretty name <+> assign <+> pretty consName <+> nest 4 (sep (map (printTm . fval) fields))
+
+-- printDef (OpenName _) = mempty
+-- printDef (Separator '\n' n _) = vcat $ replicate (fromIntegral n) emptyDoc
+-- printDef (Separator c n b) =
+--   let s = hcat $ replicate (fromIntegral n) (pretty c) in
+--   if b then hardline <> s <> hardline else s
 
 
--- Print the Agda module
-printModule :: Module -> Agda ann
-printModule (Module name imports defs) =
-    let
-        headers = "module" <+> pretty name <+> "where" <> hardline <>
-          vsep (map printImport imports)
-        -- Concatenate all definitions
-        body = vcat $ map printDef defs
+-- -- Print the Agda module
+-- printModule :: Module -> Agda ann
+-- printModule (Module name imports defs) =
+--     let
+--         headers = "module" <+> pretty name <+> "where" <> hardline <>
+--           vsep (map printImport imports)
+--         -- Concatenate all definitions
+--         body = vcat $ map printDef defs
 
-    in headers <> hardline <> hardline <> body
+--     in headers <> hardline <> hardline <> body
 
-render :: Module -> T.Text
-render = renderStrict . P.layoutPretty P.defaultLayoutOptions . get . printModule
+-- render :: Module -> T.Text
+-- render = renderStrict . P.layoutPretty P.defaultLayoutOptions . get . printModule
 
-runAgda :: Module -> IO()
-runAgda m = T.writeFile ("out/" ++ (T.unpack $ mname m) ++ ".agda") $ render m
+-- runAgda :: Module -> IO()
+-- runAgda m = T.writeFile ("out/" ++ (T.unpack $ mname m) ++ ".agda") $ render m

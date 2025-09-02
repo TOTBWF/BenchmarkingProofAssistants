@@ -17,7 +17,7 @@ import Numeric.Natural
 import Panbench.Grammar
 import Panbench.Pretty
 
-newtype Agda ann = Agda { getAgda :: Doc ann }
+newtype Agda ann = AgdaDoc { getAgda :: Doc ann }
   deriving newtype (Semigroup, Monoid)
 
 instance IsString (Agda ann) where
@@ -68,6 +68,9 @@ instance Builtin (Agda ann) "+" (Agda ann -> Agda ann -> Agda ann) where
 
 instance Builtin (Agda ann) "suc" (Agda ann -> Agda ann) where
   mkBuiltin x = "suc" <+> x
+
+instance Builtin (Agda ann) "Nat" (Agda ann) where
+  mkBuiltin = "Nat"
 
 instance Literal (Agda ann) "Nat" Natural where
   mkLit = pretty

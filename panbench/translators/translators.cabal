@@ -29,7 +29,11 @@ library
     exposed-modules:  
         Grammar,
         Panbench.Data.List.Bwd,
+        Panbench.Generator,
+        Panbench.Grammar,
+        Panbench.Grammar.Agda,
         Panbench.Lang,
+        Panbench.Pretty,
         Panbench,
         Print.Generic,
         Print.Agda, 

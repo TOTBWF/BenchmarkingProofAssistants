@@ -1,10 +1,16 @@
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RequiredTypeArguments #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GADTs #-}
 -- | Language metadata.
 --
 -- This module is intended to be imported qualified.
 module Panbench.Lang
-  (  -- $languages
+  (  -- * Languages
     Lang(..)
-  , render
   , name
   , fileExt
   , buildArtifacts
@@ -26,15 +32,8 @@ import GHC.Generics
 import Text.ParserCombinators.ReadP qualified as Read
 import Text.Read
 
-import Print.Agda qualified as Agda
-import Print.Idris qualified as Idris
-import Print.Lean qualified as Lean
-import Print.Rocq qualified as Rocq
-import Grammar
-
--- * Languages
---
--- $languages
+import Panbench.Grammar hiding (name)
+import Panbench.Pretty
 
 -- | Possible languages to generate.
 data Lang = Agda | Idris | Lean | Rocq
@@ -62,13 +61,6 @@ instance JSON.FromJSON Lang where
     "lean" -> pure Lean
     "rocq" -> pure Rocq
     _ -> fail "Expected one of agda, idris2, lean, rocq."
-
--- | Render a @'Module'@ as a given language.
-render :: Lang -> Module -> Text
-render Agda = Agda.render
-render Idris = Idris.render
-render Lean = Lean.render
-render Rocq = Rocq.render
 
 -- | Get the name of a language.
 name :: Lang -> String
