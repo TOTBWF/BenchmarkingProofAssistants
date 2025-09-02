@@ -37,19 +37,27 @@ binders = hsepMap binder
 pattern_ :: Pattern (Agda ann) -> Agda ann
 pattern_ (VarPat Explicit nm) = pretty nm
 pattern_ (VarPat Implicit nm) = "{" <> pretty nm <> "}"
-pattern_ (ConPat vis nm pats) = visible vis $ pretty nm <+> hsepMap pattern_ pats
+pattern_ (ConPat vis nm pats) =
+  listAlt pats
+    (visible vis $ pretty nm <+> hsepMap pattern_ pats)
+    (visible vis $ pretty nm)
 
 patterns :: [Pattern (Agda ann)] -> Agda ann
 patterns = hsepMap pattern_
 
 letDef :: LetDef (Agda ann) -> Agda ann
+
 letDef (ChkLetDef nm tp pats body) =
   hardlines
   [ pretty nm <+> ":" <+> align tp
-  , pretty nm <+> patterns pats <+> "=" <\?> align body
+  , listAlt pats
+      (pretty nm <+> "=" <\?> align body)
+      (pretty nm <+> patterns pats <+> "=" <\?> align body)
   ]
 letDef (SynLetDef nm pats body) =
-  pretty nm <+> patterns pats <+> "=" <\?> align body
+  listAlt pats
+    (pretty nm <+> "=" <\?> align body)
+    (pretty nm <+> patterns pats <+> "=" <\?> align body)
 
 letDefs :: [LetDef (Agda ann)] -> Agda ann
 letDefs = align . hardlinesMap letDef
@@ -59,7 +67,9 @@ instance Term (Agda ann) where
   arr x y = x <+> "->" <+> y
   pi xs y = binders xs <+> "->" <+> y
   app x ys = x <\?> sep ys
-  let_ defs body = "let" <+> letDefs defs <+> "in" <+> body
+  let_ [] body = body
+  let_ [def] body = "let" <+> letDef def <+> "in" <+> body
+  let_ defs body = align ("let" <+> letDefs defs <\> "in" <+> body)
   univ = "Set"
   parens = enclose "(" ")"
 

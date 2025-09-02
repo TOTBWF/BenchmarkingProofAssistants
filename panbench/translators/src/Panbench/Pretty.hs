@@ -38,12 +38,14 @@ module Panbench.Pretty
   , vcatMap
   , hardlinesMap
   , punctuate
+  , listAlt
   -- * Re-exports
   , P.Doc
   ) where
 
 import Data.Kind
 import Data.Coerce
+import Data.Foldable
 
 import Data.Text (Text)
 
@@ -119,14 +121,16 @@ liftDoc2 f x y = coerce (f (coerce x) (coerce y))
 (<+>) = liftDoc2 (P.<+>)
 
 -- | Only used to avoid redundant 'Semigroup' constraints.
-cat :: (IsDoc doc) => doc ann -> doc ann -> doc ann
-cat = liftDoc2 (<>)
+--
+-- Mnemonic: If '<+>' adds a space, then '<->' does not.
+(<->) :: (IsDoc doc) => doc ann -> doc ann -> doc ann
+(<->) = liftDoc2 (<>)
 
 (<\?>) :: (IsDoc doc) => doc ann -> doc ann -> doc ann
-(<\?>) x y = x `cat` softline `cat` y
+(<\?>) x y = x <-> softline <-> y
 
 (<\>) :: (IsDoc doc) => doc ann -> doc ann -> doc ann
-(<\>) x y = x `cat` hardline `cat` y
+(<\>) x y = x <-> hardline <-> y
 
 --------------------------------------------------------------------------------
 -- Ternary Combinators
@@ -155,14 +159,34 @@ vcat = liftDocList P.vcat
 hardlines :: (IsDoc doc) => [doc ann] -> doc ann
 hardlines = foldr (<\>) (doc mempty)
 
-vcatMap :: (IsDoc doc, Foldable t) => (a -> doc ann) -> t a -> doc ann
-vcatMap f = foldr (\a doc -> f a `cat` line' `cat` doc) (doc mempty)
+concatMapWith
+  :: (IsDoc doc, Foldable t)
+  => (doc ann -> doc ann -> doc ann)
+  -> (a -> doc ann)
+  -> t a -> doc ann
+concatMapWith c f xs =
+  case toList xs of
+    [] -> doc mempty
+    (x:xs) -> foldl' (\acc y -> c acc (f y)) (f x) xs
 
+vcatMap :: (IsDoc doc, Foldable t) => (a -> doc ann) -> t a -> doc ann
+vcatMap = concatMapWith (\x y -> x <-> line' <-> y)
+
+-- FIXME: All of these should use some variant of foldr1 or something??
 hsepMap :: (IsDoc doc, Foldable t) => (a -> doc ann) -> t a -> doc ann
-hsepMap f = foldr (\a doc -> f a <+> doc) (doc mempty)
+hsepMap = concatMapWith (<+>)
 
 hardlinesMap :: (IsDoc doc, Foldable t) => (a -> doc ann) -> t a -> doc ann
-hardlinesMap f = foldr (\a doc -> f a <\> doc) (doc mempty)
+hardlinesMap = concatMapWith (<\>)
 
 punctuate :: forall doc ann. (IsDoc doc) => doc ann -> [doc ann] -> [doc ann]
 punctuate p xs = docs (P.punctuate (undoc p) (undocs xs))
+
+-- | Alternative layouts for when a list is empty.
+listAlt
+  :: (IsDoc doc, Foldable t)
+  => t a
+  -> doc ann
+  -> doc ann
+  -> doc ann
+listAlt xs d1 d2 = if null xs then d1 else d2
