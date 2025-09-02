@@ -68,7 +68,7 @@ instance Term (Agda ann) where
   pi xs y = binders xs <+> "->" <+> y
   app x ys = x <\?> sep ys
   let_ [] body = body
-  let_ [def] body = "let" <+> letDef def <+> "in" <+> body
+  let_ [def] body = align ("let" <+> letDef def <+> "in" <\> body)
   let_ defs body = align ("let" <+> letDefs defs <\> "in" <+> body)
   univ = "Set"
   parens = enclose "(" ")"
@@ -104,7 +104,7 @@ instance (Module (Agda ann) (Agda ann)) where
   defTm nm tp body =
     hardlines
     [ pretty nm <+> ":" <+> tp
-    , pretty nm <+> "=" <\?> nest 2 body
+    , pretty nm <+> "=" <> nest 2 (group (line <> body))
     ]
 
   defMatch nm tp cs =

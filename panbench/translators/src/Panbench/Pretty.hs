@@ -16,16 +16,19 @@ module Panbench.Pretty
   , softline
   , softline'
   , hardline
+  , space
   -- * Combinators
   -- ** Unary Combinators
   , align
   , nest
   , hang
+  , group
   , doubleQuote
   -- ** Binary Combinators
   , (<+>)
   , (<\?>)
   , (<\>)
+  , flatAlt
   -- ** Ternary Combinators
   , enclose
   -- ** List Combinators
@@ -93,6 +96,9 @@ softline' = doc P.softline'
 hardline :: (IsDoc doc) => doc ann
 hardline = doc P.hardline
 
+space :: (IsDoc doc) => doc ann
+space = doc " "
+
 --------------------------------------------------------------------------------
 -- Unary Combinators
 
@@ -102,11 +108,46 @@ liftDoc1 f x = coerce (f (coerce x))
 align :: (IsDoc doc) => doc ann -> doc ann
 align = liftDoc1 P.align
 
+-- | Increase the current indentation level.
+--
+-- Note that the indentation level increase only has an effect if the
+-- after a newline inside the 'nest' call. For example,
+--
+-- @
+-- "x" <+> "=" <> group (line <> nest 2 ("let y = 1 in" <\> "y"))
+-- @
+--
+-- will print as
+--
+-- @
+-- x =
+-- let y = 1 in
+--   y
+-- @
+--
+-- On the other hand,
+--
+-- @
+-- "x" <+> "=" <> nest 2 (group (line <> nest 2 ("let y = 1 in" <\> "y")))
+-- @
+--
+-- will print as
+--
+-- @
+-- x =
+--   let y = 1 in
+--   y
+-- @
+--
+-- See https://github.com/quchen/prettyprinter/issues/78
 nest :: (IsDoc doc) => Int -> doc ann -> doc ann
 nest n = liftDoc1 (P.nest n)
 
 hang :: (IsDoc doc) => Int -> doc ann -> doc ann
 hang n = liftDoc1 (P.hang n)
+
+group :: (IsDoc doc) => doc ann -> doc ann
+group = liftDoc1 P.group
 
 doubleQuote :: (IsDoc doc) => doc ann -> doc ann
 doubleQuote = enclose (doc "\"") (doc "\"")
@@ -131,6 +172,9 @@ liftDoc2 f x y = coerce (f (coerce x) (coerce y))
 
 (<\>) :: (IsDoc doc) => doc ann -> doc ann -> doc ann
 (<\>) x y = x <-> hardline <-> y
+
+flatAlt :: (IsDoc doc) => doc ann -> doc ann -> doc ann
+flatAlt = liftDoc2 P.flatAlt
 
 --------------------------------------------------------------------------------
 -- Ternary Combinators
