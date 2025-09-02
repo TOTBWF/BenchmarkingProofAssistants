@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
 -- | Helpers for installing @agda@.
 module Panbench.Shake.Lang.Agda
   ( -- $shakeAgdaInstall
@@ -14,12 +15,15 @@ module Panbench.Shake.Lang.Agda
   ) where
 
 import Data.Char
+import Data.Text qualified as T
 
 import Development.Shake
 import Development.Shake.Classes
 
 import GHC.Generics
 
+import Panbench.Generator
+import Panbench.Grammar.Agda
 import Panbench.Shake.AllCores
 import Panbench.Shake.File
 import Panbench.Shake.Git

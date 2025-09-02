@@ -64,7 +64,8 @@ executable site
         shake >= 0.19,
         text >= 2.1 && < 3.0,
         time >= 1.12,
-        translators
+        panbench-generators,
+        translators,
     hs-source-dirs:
         app
     c-sources:
