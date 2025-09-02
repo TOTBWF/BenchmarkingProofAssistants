@@ -1,6 +1,6 @@
 cradle:
   cabal:
-    - path: "generators/app"
+    - path: "generators/src"
       component: "lib:panbench-generators"
 
     - path: "site/app/Main.hs"
@@ -63,11 +63,11 @@ cradle:
     - path: "site/app/Panbench/Shake/Vega.hs"
       component: "panbench-site:exe:site"
 
-    - path: "translators/src"
-      component: "lib:translators"
+    - path: "grammar/src"
+      component: "lib:panbench-grammar"
 
-    - path: "translators/app/Main.hs"
+    - path: "grammar/app/Main.hs"
       component: "translators:exe:translators"
 
-    - path: "translators/test/golden"
-      component: "translators:test:translators-golden"
+    - path: "generators/test/golden"
+      component: "panbench-generators:test:panbench-generators"

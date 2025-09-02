@@ -1,17 +1,16 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-module LetAddExample where
+module Panbench.Generator.NestedLetAdditions where
 
 import Numeric.Natural
 
 import Panbench.Generator
 import Panbench
 
-
-letAddExample
+generator
   :: (Module rep m, Import m "Data.Nat", Constant rep "Nat", Literal rep "Nat" Natural, Op2 rep "+")
   => GenModule Natural m rep
-letAddExample = GenModule "LetAddExample" header body
+generator = GenModule "LetAddExample" header body
   where
     header =
       import_ "Data.Nat"

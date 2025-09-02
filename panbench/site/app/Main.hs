@@ -23,7 +23,7 @@ import Panbench.Shake.Make
 import Panbench.Shake.Matrix
 import Panbench.Shake.Opam
 
-import LetAddExample qualified as Generator
+import Panbench.Generator.NestedLetAdditions qualified as NestedLetAdditions
 
 main :: IO ()
 main = shakeArgs (shakeOptions {shakeFiles="_build"}) do
@@ -31,7 +31,7 @@ main = shakeArgs (shakeOptions {shakeFiles="_build"}) do
   "_build/site/index.html" %> \out -> do
     needSite out
       [ BenchmarkMatrix "LetAddExample" [2^n | (n :: Natural) <- [0..4]]
-        [ benchmarkMatrixRow (Agda String) Generator.letAddExample
+        [ benchmarkMatrixRow (Agda String) NestedLetAdditions.generator
         ]
       ]
 
