@@ -52,6 +52,7 @@ main = shakeArgs (shakeOptions {shakeFiles="_build"}) do
 
   withTargetDocs "Remove all generated outputs and html files." $
     phony "clean" do
+      need ["clean-site"]
       removeFilesAfter "_build" ["agda/*", "lean/*", "idris2/*", "rocq/*", "*.html"]
 
   withTargetDocs "Delete the entire _build directory, including the shake database." $
