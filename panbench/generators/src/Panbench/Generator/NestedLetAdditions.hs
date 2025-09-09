@@ -17,6 +17,6 @@ generator = GenModule "LetAddExample" header body
 
     body size =
       defTm "n" (builtin "Nat") $
-        let_ [SynLetDef (name "x" 0) [] (nat 1)] $
-        let_ [SynLetDef (name "x" i) [] (op2 "+" (varN "x" (i - 1)) (varN  "x" (i - 1))) | i <- [1..size]] $
-          var (name "x" size)
+      let_ [NoAnn (name "x" 0) := nat 1] $
+      let_ [NoAnn (name "x" i) := op2 "+" (varN "x" (i - 1)) (varN  "x" (i - 1)) | i <- [1..size]] $
+      var (name "x" size)

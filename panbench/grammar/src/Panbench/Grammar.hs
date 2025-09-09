@@ -8,6 +8,8 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ViewPatterns #-}
 -- | Tagless grammar for panbench.
 module Panbench.Grammar
   (
@@ -18,11 +20,13 @@ module Panbench.Grammar
   -- * Binders
   , Visibility(..)
   , Arg(..)
+  , Defn(..)
+  , Binding(..)
   -- * Terms
-  , LetDef(..)
   , Term(..)
   -- * Patterns
   , Pattern(..)
+  , pattern VarPats
   , Clause(..)
   -- * Definitions
   , Constr(..)
@@ -48,6 +52,7 @@ import Data.List.NonEmpty (NonEmpty)
 import Data.Kind
 import Data.Text (Text)
 import Data.Text qualified as T
+import Data.String (IsString(..))
 
 import GHC.TypeLits
 
@@ -72,15 +77,19 @@ data Visibility
   | Implicit
   -- ^ An implicit binder like @{x : A} -> B x@
 
--- | Binder metadata.
+-- | An 'Arg' is a named, annotated thing with a 'Visibility'.
 data Arg nm arg = Arg { argNm :: nm, unArg :: arg , argVis :: Visibility}
+
+-- | Definitions.
+data Defn nm ann body = Binding nm ann := body
+
+-- | A (potentially annotated) binding.
+data Binding nm ann
+  = Ann nm ann
+  | NoAnn nm
 
 --------------------------------------------------------------------------------
 -- Terms
-
-data LetDef rep
-  = ChkLetDef Name rep [Pattern rep] rep
-  | SynLetDef Name [Pattern rep] rep
 
 -- | Terms.
 class Term (rep :: Type) where
@@ -101,7 +110,8 @@ class Term (rep :: Type) where
   -- Using n-ary application allows for nicer display.
   app :: rep -> [rep] -> rep
 
-  let_ :: [LetDef rep] -> rep -> rep
+  -- | Simple let-bindings.
+  let_ :: [Defn Name rep rep] -> rep -> rep
 
   -- | The universe.
   univ :: rep
@@ -194,6 +204,15 @@ data Pattern rep
   | VarPat Visibility Name
 
 data Clause rep = Clause { clausePats :: [Pattern rep], clauseBody :: rep }
+
+viewVarPat :: Pattern rep -> Maybe (Visibility, Name)
+viewVarPat (VarPat vis nm) = Just (vis, nm)
+viewVarPat _ = Nothing
+
+pattern VarPats :: [(Visibility, Name)] -> [Pattern rep]
+pattern VarPats nms <- (traverse viewVarPat -> Just nms)
+  where
+    VarPats nms = fmap (uncurry VarPat) nms
 
 --------------------------------------------------------------------------------
 -- Definitions

@@ -18,10 +18,7 @@ import Panbench.Grammar
 import Panbench.Pretty
 
 newtype Agda ann = AgdaDoc { getAgda :: Doc ann }
-  deriving newtype (Semigroup, Monoid)
-
-instance IsString (Agda ann) where
-  fromString s = pretty s
+  deriving newtype (Semigroup, Monoid, IsString)
 
 visible :: Visibility -> Agda ann -> Agda ann
 visible Explicit = enclose "(" ")"
@@ -45,27 +42,10 @@ pattern_ (ConPat vis nm pats) =
 patterns :: [Pattern (Agda ann)] -> Agda ann
 patterns = hsepMap pattern_
 
-letDef :: LetDef (Agda ann) -> Agda ann
-
-letDef (ChkLetDef nm tp pats body) =
-  hardlines
-  [ pretty nm <+> ":" <+> align tp
-  , listAlt pats
-      (pretty nm <+> "=" <\?> align body)
-      (pretty nm <+> patterns pats <+> "=" <\?> align body)
-  ]
-letDef (SynLetDef nm pats body) =
-  listAlt pats
-    (pretty nm <+> "=" <\?> align body)
-    (pretty nm <+> patterns pats <+> "=" <\?> align body)
-
-letDefs :: [LetDef (Agda ann)] -> Agda ann
-letDefs = align . hardlinesMap letDef
-
 instance Term (Agda ann) where
   var x = pretty x
-  arr x y = x <+> "->" <+> y
-  pi xs y = binders xs <+> "->" <+> y
+  arr x y = x <+> "→" <+> y
+  pi xs y = binders xs <+> "→" <+> y
   app x ys = x <\?> sep ys
   let_ [] body = body
   let_ [def] body = align ("let" <+> letDef def <+> "in" <\> body)
@@ -98,8 +78,22 @@ constructors =
   nest 2 . hardlinesMap \(Constr nm tp) ->
     pretty nm <+> ":" <+> tp
 
+letDef :: Defn Name (Agda ann) (Agda ann) -> Agda ann
+letDef (Ann nm tp := body) =
+  hardlines
+  [ pretty nm <+> ":" <+> align tp
+  , pretty nm <+> "=" <\?> align body
+  ]
+letDef (NoAnn nm := body) =
+  pretty nm <+> "=" <\?> align body
 
-instance (Module (Agda ann) (Agda ann)) where
+letDefs :: [Defn Name (Agda ann) (Agda ann)] -> Agda ann
+letDefs = align . hardlinesMap letDef
+
+--------------------------------------------------------------------------------
+-- Modules
+
+instance Module (Agda ann) (Agda ann) where
   moduleHeader modNm = "module" <+> pretty modNm <+> "where" <> hardline
   defTm nm tp body =
     hardlines
