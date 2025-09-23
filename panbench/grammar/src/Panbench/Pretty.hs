@@ -24,6 +24,7 @@ module Panbench.Pretty
   , hang
   , group
   , doubleQuote
+  , subscript
   -- ** Binary Combinators
   , (<+>)
   , (<\?>)
@@ -50,7 +51,11 @@ import Data.Kind
 import Data.Coerce
 import Data.Foldable
 
+import Data.Char (chr)
 import Data.Text (Text)
+import Data.String (IsString(..))
+
+import Numeric.Natural
 
 import Prettyprinter qualified as P
 import Prettyprinter.Render.Text qualified as P
@@ -152,6 +157,24 @@ group = liftDoc1 P.group
 doubleQuote :: (IsDoc doc) => doc ann -> doc ann
 doubleQuote = enclose (doc "\"") (doc "\"")
 
+-- | Add a unicode numeric subscript.
+--
+--
+-- @
+-- @
+subscript :: (IsDoc doc) => doc ann -> Natural -> doc ann
+subscript x n = x <-> doc (fromString (digits n []))
+  where
+    -- u2080..u2809 are the characters ₀..₉
+    digit :: Natural -> Char
+    digit n = chr (0x2080 + fromIntegral n)
+
+    digits :: Natural -> String -> String
+    digits n acc | n < 10 = digit n:acc
+             | otherwise =
+               let (d, r) = n `divMod` 10
+               in digits d (digit r:acc)
+
 --------------------------------------------------------------------------------
 -- Binary Combinators
 
@@ -167,6 +190,10 @@ liftDoc2 f x y = coerce (f (coerce x) (coerce y))
 (<->) :: (IsDoc doc) => doc ann -> doc ann -> doc ann
 (<->) = liftDoc2 (<>)
 
+-- | Concatenate two documents together with a 'softline'.
+--
+-- If @x <\?> y@ fits on the page, then this is the same
+-- as @x <+> y@. Otherwise, this is the same as @x <\> y@.
 (<\?>) :: (IsDoc doc) => doc ann -> doc ann -> doc ann
 (<\?>) x y = x <-> softline <-> y
 
