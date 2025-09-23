@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE DataKinds #-}
 
@@ -20,110 +22,56 @@ import Panbench.Pretty
 newtype Agda ann = AgdaDoc { getAgda :: Doc ann }
   deriving newtype (Semigroup, Monoid, IsString)
 
-visible :: Visibility -> Agda ann -> Agda ann
-visible Explicit = enclose "(" ")"
-visible Implicit = enclose "{" "}"
-
-binder :: Arg [Name] (Agda ann) -> Agda ann
-binder (Arg [] tp vis) = visible vis tp
-binder (Arg nms tp vis) = visible vis (hsepMap pretty nms <+> ":" <+> tp)
-
-binders :: (Foldable f) => f (Arg [Name] (Agda ann)) -> Agda ann
-binders = hsepMap binder
-
-pattern_ :: Pattern (Agda ann) -> Agda ann
-pattern_ (VarPat Explicit nm) = pretty nm
-pattern_ (VarPat Implicit nm) = "{" <> pretty nm <> "}"
-pattern_ (ConPat vis nm pats) =
-  listAlt pats
-    (visible vis $ pretty nm <+> hsepMap pattern_ pats)
-    (visible vis $ pretty nm)
-
-patterns :: [Pattern (Agda ann)] -> Agda ann
-patterns = hsepMap pattern_
-
-instance Term (Agda ann) where
-  var x = pretty x
-  arr x y = x <+> "→" <+> y
-  pi xs y = binders xs <+> "→" <+> y
-  app x ys = x <\?> sep ys
-  let_ [] body = body
-  let_ [def] body = align ("let" <+> letDef def <+> "in" <\> body)
-  let_ defs body = align ("let" <+> letDefs defs <\> "in" <+> body)
-  univ = "Set"
-  parens = enclose "(" ")"
-
-instance Builtin (Agda ann) "+" (Agda ann -> Agda ann -> Agda ann) where
-  mkBuiltin x y = x <+> "+" <+> y
-
-instance Builtin (Agda ann) "suc" (Agda ann -> Agda ann) where
-  mkBuiltin x = "suc" <+> x
-
-instance Builtin (Agda ann) "Nat" (Agda ann) where
-  mkBuiltin = "Nat"
-
-instance Literal (Agda ann) "Nat" Natural where
-  mkLit = pretty
+instance Name (Agda ann) where
+  nameN = subscript
 
 --------------------------------------------------------------------------------
--- Definitions
+-- Cells
 
-clauses :: Name -> [Clause (Agda ann)] -> Agda ann
-clauses nm =
-  hardlinesMap \(Clause pats body) ->
-    pretty nm <+> patterns pats <+> "=" <\?> hang 2 body
+data AgdaVisibility
+  = AgdaVisible
+  | AgdaImplicit
 
-constructors :: [Constr (Agda ann)] -> Agda ann
-constructors =
-  nest 2 . hardlinesMap \(Constr nm tp) ->
-    pretty nm <+> ":" <+> tp
+data AgdaCell ann
+  = AgdaChks AgdaVisibility [(Agda ann)] (Agda ann)
+  | AgdaSyns AgdaVisibility [(Agda ann)]
 
-letDef :: Defn Name (Agda ann) (Agda ann) -> Agda ann
-letDef (Ann nm tp := body) =
-  hardlines
-  [ pretty nm <+> ":" <+> align tp
-  , pretty nm <+> "=" <\?> align body
-  ]
-letDef (NoAnn nm := body) =
-  pretty nm <+> "=" <\?> align body
+setCellVisibility :: AgdaVisibility -> AgdaCell ann -> AgdaCell ann
+setCellVisibility vis (AgdaChks _ nms ann) = AgdaChks vis nms ann
+setCellVisibility vis (AgdaSyns _ nms) = AgdaSyns vis nms
 
-letDefs :: [Defn Name (Agda ann) (Agda ann)] -> Agda ann
-letDefs = align . hardlinesMap letDef
+instance Syns (Agda ann) (AgdaCell ann) where
+  syns = AgdaSyns AgdaVisible
+
+instance Chks (Agda ann) (Agda ann) (AgdaCell ann) where
+  chks = AgdaChks AgdaVisible
+
+deriving via SingletonCell (AgdaCell ann) instance Syn (Agda ann) (AgdaCell ann)
+deriving via SingletonCell (AgdaCell ann) instance Chk (Agda ann) (Agda ann) (AgdaCell ann)
+
+instance Implicit (AgdaCell ann) where
+  implicit = setCellVisibility AgdaImplicit
 
 --------------------------------------------------------------------------------
--- Modules
+-- Binders
 
-instance Module (Agda ann) (Agda ann) where
-  moduleHeader modNm = "module" <+> pretty modNm <+> "where" <> hardline
-  defTm nm tp body =
-    hardlines
-    [ pretty nm <+> ":" <+> tp
-    , pretty nm <+> "=" <> nest 2 (group (line <> body))
-    ]
+agdaVisibility :: AgdaVisibility -> Agda ann -> Agda ann
+agdaVisibility AgdaVisible = enclose "(" ")"
+agdaVisibility AgdaImplicit = enclose "{" "}"
 
-  defMatch nm tp cs =
-    hardlines
-    [ pretty nm <+> ":" <+> tp
-    , clauses nm cs
-    ]
+agdaBinder :: AgdaCell ann -> Agda ann
+agdaBinder (AgdaChks vis nm ann) = agdaVisibility vis (hsep nm <+> ":" <+> ann)
+agdaBinder (AgdaSyns vis nm) = agdaVisibility vis (hsep nm)
 
-  defData nm params cons =
-    hardlines
-    [ "data" <+> pretty nm <+> binders params <+> ":" <+> "where"
-    , constructors cons
-    ]
+agdaBinders :: [AgdaCell ann] -> Agda ann
+agdaBinders = hsepMap agdaBinder
 
-openImport :: Text -> Agda ann
-openImport m = "open" <+> "import" <+> pretty m <> hardline
+--------------------------------------------------------------------------------
+-- Terms
 
-instance Import (Agda ann) "Data.Nat" where
-  mkImport = openImport "Agda.Builtin.Nat"
+instance Var (Agda ann) (Agda ann) where
+  var = id
 
-instance Import (Agda ann) "Data.Vec" where
-  mkImport = openImport "Data.Vec.Base"
-
-instance Import (Agda ann) "Data.List" where
-  mkImport = openImport "Agda.Builtin.List"
-
-instance Import (Agda ann) "Data.String" where
-  mkImport = openImport "Agda.Builtin.String"
+instance Pi [AgdaCell ann] (Agda ann) where
+  pi [] body = body
+  pi args body = agdaBinders args <\?> "→" <+> body
