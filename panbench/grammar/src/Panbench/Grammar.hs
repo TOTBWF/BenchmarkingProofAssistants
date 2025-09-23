@@ -10,41 +10,51 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE UndecidableInstances #-}
 -- | Tagless grammar for panbench.
-module Panbench.Grammar
-  (
-  -- * Names
-    Name
-  , name
-  , names
-  -- * Binders
-  , Visibility(..)
-  , Arg(..)
-  , Defn(..)
-  , Binding(..)
-  -- * Terms
-  , Term(..)
-  -- * Patterns
-  , Pattern(..)
-  , pattern VarPats
-  , Clause(..)
-  -- * Definitions
-  , Constr(..)
-  , Module(..)
-  -- * Operators, Builtins, and literals
-  , Builtin(..) , builtin
-  -- ** Builtin shorthands
-  , Constant , constant
-  , Op1 , op1
-  , Op2 , op2
-  , Literal(..) , lit
-  , nat, list, vec, string
-  -- * Imports
-  , Import(..) , import_
-  -- * Helpers
-  , vars
-  , varN
-  ) where
+module Panbench.Grammar where
+  -- (
+  -- -- * Names
+  --   Name
+  -- , name
+  -- , names
+  -- -- * Binders
+  -- , Visibility(..)
+  -- -- , Arg(..)
+  -- -- , Tele(..)
+  -- , Defn(..)
+  -- , Binding(..)
+  -- -- * Terms
+  -- , Var(..)
+  -- , Pi(..)
+  -- , Let(..)
+  -- , Lets(..)
+  -- -- * Patterns
+  -- , Pattern(..)
+  -- , pattern VarPats
+  -- , Clause(..)
+  -- -- * Definitions
+  -- , Constr(..)
+  -- , Module(..)
+  -- -- * Operators, Builtins, and literals
+  -- , Builtin(..) , builtin
+  -- -- ** Builtin shorthands
+  -- , Constant , constant
+  -- , Op1 , op1
+  -- , Op2 , op2
+  -- , Literal(..) , lit
+  -- , nat, list, vec, string
+  -- -- * Imports
+  -- , Import(..) , import_
+  -- -- * Helpers
+  -- , vars
+  -- , varN
+  -- ) where
+
+import Prelude hiding (pi)
 
 import Numeric.Natural
 
@@ -54,70 +64,197 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Data.String (IsString(..))
 
+import GHC.Exts (IsList(..))
 import GHC.TypeLits
 
 --------------------------------------------------------------------------------
--- Names
+-- Binders.
 
-type Name = Text
+-- $binders
+--
+-- Our metalanguage needs to support lots of different binding constructs.
+-- Moreover, all the languages tend to have different overlapping supported
+-- sets of binding constructs. To handle this, we introduce a general langauge
+-- of *binding shapes* and *binding modifiers* that act on said shapes.
+--
+-- As the name suggests binding shape is a general pattern of binding.
+-- We support 3 different options
+--
+-- 1. Single binders like (x : A)
+-- 2. Multi-name binders like (x y : A)
+-- 3. Telescopic binders like (x y : A) (b : B) (z : C x b)
+--
+-- Consumers of the binder shape API are expected to use the same @binder@ type for all
+-- binding-shape classes, as in the following example:
+--
+-- @
+-- test
+--   :: (Binder nm rep binder, Binders nm rep binder, Pi binder rep)
+--   => rep -> rep -> rep -> rep
+-- test foo bar baz = pi ("x" .: foo) $ pi (["a", "b"] .:* bar) baz
+-- @
+--
+-- Producers of the binding shape API are expected to use the extra degree of freedom
+-- provided by classes like 'Pi' to delay rendering decisions for binding constructs
+-- until the use-site: see $bindingModifiers for more information.
+--
+-- We also add an intermediate notion of a binder "cell", which represents a
+--
 
-name :: Name -> Natural -> Name
-name x n = x <> T.pack (show n)
+class (IsString nm) => Name nm where
+  nameN :: nm -> Natural -> nm
 
-names :: Name -> [Natural] -> [Name]
-names x ns = name x <$> ns
+class Chk nm rep cell | cell -> nm, cell -> rep where
+  chk :: nm -> rep -> cell
+
+class Chks nm rep cell | cell -> nm, cell -> rep where
+  chks :: [nm] -> rep -> cell
+
+class Syn nm cell | cell -> nm where
+  syn :: nm -> cell
+
+class Syns nm cell | cell -> nm where
+  syns :: [nm] -> cell
 
 --------------------------------------------------------------------------------
--- Binders
+-- Deriving-via helpers
 
--- | Binder visibility
-data Visibility
-  = Explicit
-  -- ^ An explicit binder like @(x : A) -> B x@
-  | Implicit
-  -- ^ An implicit binder like @{x : A} -> B x@
+newtype SingletonCell cell = SingletonCell cell
 
--- | An 'Arg' is a named, annotated thing with a 'Visibility'.
-data Arg nm arg = Arg { argNm :: nm, unArg :: arg , argVis :: Visibility}
+instance Syns nm cell => Syn nm (SingletonCell cell) where
+  syn nm = SingletonCell (syns [nm])
 
--- | Definitions.
-data Defn nm ann body = Binding nm ann := body
+instance Chks nm rep cell => Chk nm rep (SingletonCell cell) where
+  chk nm rep = SingletonCell (chks [nm] rep)
 
--- | A (potentially annotated) binding.
-data Binding nm ann
-  = Ann nm ann
-  | NoAnn nm
+-- | Infix operator for 'chkCell'.
+(.:) :: (Chk nm rep cell) => nm -> rep -> cell
+(.:) = chk
+
+-- | Infix operator for 'chksCell'.
+(.:*) :: (Chks nm rep cell) => [nm] -> rep -> cell
+(.:*) = chks
+
+class Binder cell binder | binder -> cell where
+  -- | A single binder like @(x : A)@.
+  --
+  -- By default, the binder should be a visible binder.
+  binderCell :: cell -> binder
+
+class Binders cell binder | binder -> cell where
+  -- | Turn a telescope of binder cells into a single binder.
+  --
+  -- By default, the binder should be a visible binder.
+  -- Any binding actions should act upon the *entire* binding telescope.
+  binderCells :: [cell] -> binder
+
+-- | If a language does support telescopic binders, @cell@, it is convienent to use
+-- @[cell]@ as our representation of a multi-binder.
+instance Binders cell [cell] where
+  binderCells = id
+
+--------------------------------------------------------------------------------
+-- Binder modifiers
+
+-- $bindingModifiers
+--
+-- The other half of the binder API is *binding modifiers, which handle things
+-- like implicit arguments, class arguments, erasure, etc. Every sort of modifier
+-- has a class associated to it like 'Implicit', which provide an (possibly parameterized)
+-- action @binder -> binder@.
+--
+-- On the user-facing side, writing a modified binder is as easy as
+--
+-- @
+-- pi (implicit ("x" .: nat)) nat
+-- @
+--
+-- Instances for @Binder@ and related classes will then have to delay the
+-- decision on how to fully render the binder, which is why we provide the
+-- extra degree of freedom in classes like 'Pi'.
+
+class Implicit cell where
+  -- | Mark a binder cell as implicit.
+  implicit :: cell -> cell
+
+class SemiImplicit cell where
+  -- | Mark a binder cell as semi-implicit
+  semiImplicit :: cell -> cell
+
+--------------------------------------------------------------------------------
+-- Definitions
+
+class LetDef lhs rep defn | defn -> rep, defn -> lhs where
+  -- | A single, annotated local definition.
+  letDef :: lhs -> rep -> defn
+
+class LetDefs defn where
+  -- | Create a (non-mutually recursive) group of local definitions.
+  letDefs :: [defn] -> defn
+
+--------------------------------------------------------------------------------
+-- Left-hand sides
+
+-- $leftHandSides
+--
+-- We need to handle left-hand sides of definitions in two places:
+--
+-- 1. Local let bindings
+-- 2. Top-level bindings
+--
+-- Both of these cases allow for named definitions, anonymous definitions,
+-- annotated definitions, definitions that take arguments, and (sometimes) pattern
+-- definitions.
+--
+-- To handle this zoo of features, we break down a LHS into the following components:
+--
+-- A *LHS cell* is the basic building block of an LHS. These can come either annotated
+-- or unannotated, and are often equipped with actions of our visibility classes.
+
+-- | Construct a left-hand side from a single LHS cell.
+class SimpleLhs cell lhs | lhs -> cell where
+  lhsCell :: cell -> lhs
+
+-- | Construct a LHS that is parameterised by a telescope of (possibly annotated)
+-- arguments.
+--
+-- The intuition for the order of arguments is that we want to think
+-- of a LHS like
+--
+-- @
+-- let foo (A : Type) (x : Nat) (y : Nat) : Vec A (x + y) := ...
+-- @
+--
+-- as definining a term @A : Type, x : Nat, y : Nat ⊢ foo A x y : Vec (x + y)@.
+class SimpleLhs cell lhs => ArgumentLhs cell lhs | lhs -> cell where
+  lhsCells :: [cell] -> cell -> lhs
+
+-- | Shorthand for making a synthesized let-binding.
+(.=)
+  :: (LetDef lhs rep defn, SimpleLhs lc lhs, Syn nm lc)
+  => nm -> rep -> defn
+nm .= rep = letDef (lhsCell (syn nm)) rep
 
 --------------------------------------------------------------------------------
 -- Terms
 
--- | Terms.
-class Term (rep :: Type) where
-  -- | Variables.
-  var :: Name -> rep
+class (Name nm) => Var nm rep | rep -> nm where
+  var :: nm -> rep
 
-  -- | Non-dependent function types.
+varN :: (Var nm rep) => nm -> Natural -> rep
+varN nm i = var (nameN nm i)
+
+-- | Pi-types.
+class Pi binder rep | rep -> binder, binder -> rep where
+  -- | Create a pi type over a @binder@.
   --
-  -- We differentiate between dependent and non-dependent function types
-  -- to get nicer pretty-printing.
-  arr :: rep -> rep -> rep
+  -- See $binders for expected use.
+  pi :: binder -> rep -> rep
 
-  -- | Dependent function types.
-  pi :: NonEmpty (Arg [Name] rep) -> rep -> rep
+-- | Let-bindings.
+class Let defn rep | rep -> defn, defn -> rep where
+  let_ :: defn -> rep -> rep
 
-  -- | N-ary application.
-  --
-  -- Using n-ary application allows for nicer display.
-  app :: rep -> [rep] -> rep
-
-  -- | Simple let-bindings.
-  let_ :: [Defn Name rep rep] -> rep -> rep
-
-  -- | The universe.
-  univ :: rep
-
-  -- | Explicit parentheses.
-  parens :: rep -> rep
 
 --------------------------------------------------------------------------------
 -- Operators and Builtins
@@ -197,52 +334,24 @@ string :: (Literal rep "String" Text) => Text -> rep
 string = lit "String"
 
 --------------------------------------------------------------------------------
--- Patterns
+-- Top-level modules
 
-data Pattern rep
-  = ConPat Visibility Name [Pattern rep]
-  | VarPat Visibility Name
-
-data Clause rep = Clause { clausePats :: [Pattern rep], clauseBody :: rep }
-
-viewVarPat :: Pattern rep -> Maybe (Visibility, Name)
-viewVarPat (VarPat vis nm) = Just (vis, nm)
-viewVarPat _ = Nothing
-
-pattern VarPats :: [(Visibility, Name)] -> [Pattern rep]
-pattern VarPats nms <- (traverse viewVarPat -> Just nms)
-  where
-    VarPats nms = fmap (uncurry VarPat) nms
-
---------------------------------------------------------------------------------
--- Definitions
-
-data Constr rep = Constr { constrName :: Name, constrTp :: rep }
-
-class (Term rep, Monoid m) => Module (rep :: Type) (m :: Type) | rep -> m, m -> rep where
-  -- | Module header.
-  moduleHeader :: Text -> m
-
-  -- | Module with a single (possibly nullary) term.
-  defTm
-    :: Name -- ^ The name of the definition.
-    -> rep  -- ^ Type of the term.
-    -> rep  -- ^ Definition of the term.
+class (Monoid m) => Module m defn | defn -> m, m -> defn where
+  -- | Construct a top-level module.
+  module_
+    :: Text -- ^ The name of the module
+    -> m    -- ^ Module header.
+    -> m    -- ^ Module body.
     -> m
 
-  -- | Module with a single definition created via pattern matching.
-  defMatch
-    :: Name -- ^ The name of the definition.
-    -> rep -- ^ The type of the defininition
-    -> [Clause rep] -- ^ Pattern matching clauses
-    -> m
+  -- | Create a top-level definition.
+  def :: defn -> m
 
-  -- | Define a datatype.
-  defData
-    :: Name -- ^ The name of the datatype.
-    -> [Arg [Name] rep] -- ^ Datatype parameters.
-    -> [Constr rep] -- ^ Datatype constructors.
-    -> m
+modDefs :: (Module m defn) => [defn] -> m
+modDefs = foldMap def
+
+class AnnTermDefn lhs tm defn | defn -> lhs, defn -> tm where
+  annTerm :: lhs -> tm -> tm -> defn
 
 --------------------------------------------------------------------------------
 -- Imports
@@ -252,18 +361,3 @@ class (KnownSymbol i) => Import (m :: Type) (i :: Symbol) where
 
 import_ :: forall i -> (Import m i) => m
 import_ i = mkImport @_ @i
-
---------------------------------------------------------------------------------
--- Common constraints
-
---------------------------------------------------------------------------------
--- Helpers
-
--- | Construct a list of variables @x_i, x_j, x_k@ from a base name
--- and a list of numeric subscripts.
-vars :: (Term rep) => Name -> [Natural] -> [rep]
-vars x ns = var <$> names x ns
-
--- | Shorthand for @xn@ where @x@ is a name and @n@ is a natural number.
-varN :: (Term rep) => Name -> Natural -> rep
-varN x n = var (name x n)
