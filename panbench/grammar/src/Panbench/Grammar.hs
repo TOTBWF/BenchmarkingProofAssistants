@@ -16,105 +16,72 @@
 {-# LANGUAGE UndecidableInstances #-}
 -- | Tagless grammar for panbench.
 module Panbench.Grammar where
-  -- (
-  -- -- * Names
-  --   Name
-  -- , name
-  -- , names
-  -- -- * Binders
-  -- , Visibility(..)
-  -- -- , Arg(..)
-  -- -- , Tele(..)
-  -- , Defn(..)
-  -- , Binding(..)
-  -- -- * Terms
-  -- , Var(..)
-  -- , Pi(..)
-  -- , Let(..)
-  -- , Lets(..)
-  -- -- * Patterns
-  -- , Pattern(..)
-  -- , pattern VarPats
-  -- , Clause(..)
-  -- -- * Definitions
-  -- , Constr(..)
-  -- , Module(..)
-  -- -- * Operators, Builtins, and literals
-  -- , Builtin(..) , builtin
-  -- -- ** Builtin shorthands
-  -- , Constant , constant
-  -- , Op1 , op1
-  -- , Op2 , op2
-  -- , Literal(..) , lit
-  -- , nat, list, vec, string
-  -- -- * Imports
-  -- , Import(..) , import_
-  -- -- * Helpers
-  -- , vars
-  -- , varN
-  -- ) where
 
 import Prelude hiding (pi)
 
 import Numeric.Natural
 
-import Data.List.NonEmpty (NonEmpty)
 import Data.Kind
 import Data.Text (Text)
-import Data.Text qualified as T
 import Data.String (IsString(..))
 
-import GHC.Exts (IsList(..))
 import GHC.TypeLits
 
 --------------------------------------------------------------------------------
--- Binders.
+-- Names
+
+-- | A 'Name' is some type that supports idiomatic name operations
+-- like subscripting, qualification, etc.
+--
+-- [TODO: Reed M, 27/09/2025] Qualified names.
+class (IsString nm) => Name nm where
+  nameN :: nm -> Natural -> nm
+
+--------------------------------------------------------------------------------
+-- Binding Cells
 
 -- $binders
 --
 -- Our metalanguage needs to support lots of different binding constructs.
 -- Moreover, all the languages tend to have different overlapping supported
 -- sets of binding constructs. To handle this, we introduce a general langauge
--- of *binding shapes* and *binding modifiers* that act on said shapes.
---
--- As the name suggests binding shape is a general pattern of binding.
--- We support 3 different options
---
--- 1. Single binders like (x : A)
--- 2. Multi-name binders like (x y : A)
--- 3. Telescopic binders like (x y : A) (b : B) (z : C x b)
---
--- Consumers of the binder shape API are expected to use the same @binder@ type for all
--- binding-shape classes, as in the following example:
---
--- @
--- test
---   :: (Binder nm rep binder, Binders nm rep binder, Pi binder rep)
---   => rep -> rep -> rep -> rep
--- test foo bar baz = pi ("x" .: foo) $ pi (["a", "b"] .:* bar) baz
--- @
---
--- Producers of the binding shape API are expected to use the extra degree of freedom
--- provided by classes like 'Pi' to delay rendering decisions for binding constructs
--- until the use-site: see $bindingModifiers for more information.
---
--- We also add an intermediate notion of a binder "cell", which represents a
---
+-- of *binding cells* and *binding modifiers* that act on said cell.
 
-class (IsString nm) => Name nm where
-  nameN :: nm -> Natural -> nm
+-- | An annotated single binding cell.
+class Chk nm tm cell | cell -> nm, cell -> tm where
+  chk :: nm -> tm -> cell
 
-class Chk nm rep cell | cell -> nm, cell -> rep where
-  chk :: nm -> rep -> cell
+-- | A annotated multi binding cell.
+class Chks nm tm cell | cell -> nm, cell -> tm where
+  chks :: [nm] -> tm -> cell
 
-class Chks nm rep cell | cell -> nm, cell -> rep where
-  chks :: [nm] -> rep -> cell
-
+-- | An unannotated single binding cell.
 class Syn nm cell | cell -> nm where
   syn :: nm -> cell
 
+-- | An unannotated multi-binding cell.
 class Syns nm cell | cell -> nm where
   syns :: [nm] -> cell
+
+-- | Anonymous check cells.
+--
+-- These are used for binding forms like non-dependent function types,
+-- which take a type but not a name.
+class AnonChk tm cell | cell -> tm where
+  anonChk :: tm -> cell
+
+-- | Anonymous synthesis cells.
+--
+-- This somewhat odd construct is used when we put underscores in non-dependent function types, ala
+-- @
+-- foo : _ -> Type
+-- @
+--
+-- These are a somewhat odd feature, but it does exist an is provided for symmetry with
+-- 'AnonChk' cells. These are also subtly distinct from holes, as we can apply visibility
+-- modifiers to them.
+class AnonSyn tm cell | cell -> tm where
+  anonSyn :: cell
 
 --------------------------------------------------------------------------------
 -- Deriving-via helpers
@@ -124,34 +91,16 @@ newtype SingletonCell cell = SingletonCell cell
 instance Syns nm cell => Syn nm (SingletonCell cell) where
   syn nm = SingletonCell (syns [nm])
 
-instance Chks nm rep cell => Chk nm rep (SingletonCell cell) where
-  chk nm rep = SingletonCell (chks [nm] rep)
+instance Chks nm tm cell => Chk nm tm (SingletonCell cell) where
+  chk nm tm = SingletonCell (chks [nm] tm)
 
--- | Infix operator for 'chkCell'.
-(.:) :: (Chk nm rep cell) => nm -> rep -> cell
+-- | Infix operator for 'chk'.
+(.:) :: (Chk nm tm cell) => nm -> tm -> cell
 (.:) = chk
 
--- | Infix operator for 'chksCell'.
-(.:*) :: (Chks nm rep cell) => [nm] -> rep -> cell
+-- | Infix operator for 'chks'.
+(.:*) :: (Chks nm tm cell) => [nm] -> tm -> cell
 (.:*) = chks
-
-class Binder cell binder | binder -> cell where
-  -- | A single binder like @(x : A)@.
-  --
-  -- By default, the binder should be a visible binder.
-  binderCell :: cell -> binder
-
-class Binders cell binder | binder -> cell where
-  -- | Turn a telescope of binder cells into a single binder.
-  --
-  -- By default, the binder should be a visible binder.
-  -- Any binding actions should act upon the *entire* binding telescope.
-  binderCells :: [cell] -> binder
-
--- | If a language does support telescopic binders, @cell@, it is convienent to use
--- @[cell]@ as our representation of a multi-binder.
-instance Binders cell [cell] where
-  binderCells = id
 
 --------------------------------------------------------------------------------
 -- Binder modifiers
@@ -178,19 +127,62 @@ class Implicit cell where
   implicit :: cell -> cell
 
 class SemiImplicit cell where
-  -- | Mark a binder cell as semi-implicit
+  -- | Mark a binder cell as semi-implicit.
   semiImplicit :: cell -> cell
 
 --------------------------------------------------------------------------------
 -- Definitions
 
-class LetDef lhs rep defn | defn -> rep, defn -> lhs where
-  -- | A single, annotated local definition.
-  letDef :: lhs -> rep -> defn
+-- $definitions
 
-class LetDefs defn where
-  -- | Create a (non-mutually recursive) group of local definitions.
-  letDefs :: [defn] -> defn
+-- | A term definition.
+class Definition defn lhs tm | defn -> lhs, defn -> tm, tm lhs -> defn where
+  (.=) :: lhs -> tm -> defn
+
+infixr 0 .=
+
+class Postulate defn lhs | defn -> lhs, lhs -> defn where
+  postulate :: lhs -> defn
+
+-- | Data definitions.
+class DataDefinition defn lhs ctor | defn -> lhs, defn -> ctor, lhs ctor -> defn where
+  data_
+    :: lhs    -- ^ Left-hand side of the datatype.
+    -> [ctor] -- ^ Constructors.
+    -> defn
+
+-- | Create a datatype with @n@ fields.
+dataN_
+  :: (DataDefinition defn lhs ctor)
+  => lhs
+  -> Natural
+  -> (Natural -> ctor)
+  -> defn
+dataN_ lhs size ctor =
+  data_ lhs [ctor i | i <- [1..size]]
+
+-- | Record definitions.
+class RecordDefinition defn lhs name field | defn -> lhs, defn -> name, defn -> field, lhs field -> defn where
+  record_
+    :: lhs     -- ^ Left-hand side of the record type.
+    -> name    -- ^ Constructor name.
+    -> [field] -- ^ Fields.
+    -> defn
+
+-- | Create a record with @n@ fields.
+recordN_
+  :: (RecordDefinition defn lhs name field)
+  => lhs
+  -> name
+  -> Natural
+  -> (Natural -> field)
+  -> defn
+recordN_ lhs nm size field =
+  record_ lhs nm [field i | i <- [1..size]]
+
+class Newline defn where
+  -- | Generate @n@ newlines.
+  newlines :: Natural -> defn
 
 --------------------------------------------------------------------------------
 -- Left-hand sides
@@ -208,12 +200,21 @@ class LetDefs defn where
 --
 -- To handle this zoo of features, we break down a LHS into the following components:
 --
--- A *LHS cell* is the basic building block of an LHS. These can come either annotated
--- or unannotated, and are often equipped with actions of our visibility classes.
-
--- | Construct a left-hand side from a single LHS cell.
-class SimpleLhs cell lhs | lhs -> cell where
-  lhsCell :: cell -> lhs
+-- * A *LHS head* is the thing that we are actually defining. Typically, this will
+--   consist of a name, an optional annotation, and some further metadata, though
+--   we also consider the pattern portion of a destructuring let to be a head.
+--
+--   Users are intended to use the general 'Syn' and 'Chk' classes for
+--   annotations of LHS heads.
+--
+-- * A *LHS cell* is a binding cell used for bindings like
+--
+--   @
+--   let foo (A : Type) (x : Nat) (y : Nat) : Vec A (x + y) := ...
+--   @
+--
+--   Typically, the we can re-use general binding cells for LHS cells, but we
+--   distinguish the two conceptually to avoid confusion.
 
 -- | Construct a LHS that is parameterised by a telescope of (possibly annotated)
 -- arguments.
@@ -226,34 +227,55 @@ class SimpleLhs cell lhs | lhs -> cell where
 -- @
 --
 -- as definining a term @A : Type, x : Nat, y : Nat ⊢ foo A x y : Vec (x + y)@.
-class SimpleLhs cell lhs => ArgumentLhs cell lhs | lhs -> cell where
-  lhsCells :: [cell] -> cell -> lhs
+class ArgumentLhs hd cell lhs | lhs -> cell, lhs -> hd where
+  (|-) :: [cell] -> hd -> lhs
 
--- | Shorthand for making a synthesized let-binding.
-(.=)
-  :: (LetDef lhs rep defn, SimpleLhs lc lhs, Syn nm lc)
-  => nm -> rep -> defn
-nm .= rep = letDef (lhsCell (syn nm)) rep
+infix 1 |-
+
+-- | Shorthand for annotated telescope left-hand sides.
+type TelescopeLhs name tm lhs hd cell = (ArgumentLhs hd cell lhs, Chk name tm hd, Chk name tm cell)
 
 --------------------------------------------------------------------------------
 -- Terms
 
-class (Name nm) => Var nm rep | rep -> nm where
-  var :: nm -> rep
+class (Name nm) => Var nm tm | tm -> nm where
+  var :: nm -> tm
 
-varN :: (Var nm rep) => nm -> Natural -> rep
+varN :: (Var nm tm) => nm -> Natural -> tm
 varN nm i = var (nameN nm i)
 
 -- | Pi-types.
-class Pi binder rep | rep -> binder, binder -> rep where
-  -- | Create a pi type over a @binder@.
+class Pi tm cell | tm -> cell where
+  -- | Create a pi type over a list of @cell@.
   --
   -- See $binders for expected use.
-  pi :: binder -> rep -> rep
+  pi :: [cell] -> tm -> tm
+
+class Arr tm cell | tm -> cell where
+  -- | Create a pi type over a @cell@.
+  --
+  -- See $binders for expected use.
+  arr :: cell -> tm -> tm
+
+-- | Applications.
+--
+-- [FIXME: Reed M, 26/09/2025] Need to think about how visibility interacts with
+-- application.
+class App tm where
+  app :: tm -> [tm] -> tm
+
+-- | Sized application.
+appN
+  :: (App tm)
+  => tm
+  -> Natural
+  -> (Natural -> tm)
+  -> tm
+appN fn size arg = app fn [ arg i | i <- [1..size] ]
 
 -- | Let-bindings.
-class Let defn rep | rep -> defn, defn -> rep where
-  let_ :: defn -> rep -> rep
+class Let defn tm | tm -> defn, defn -> tm where
+  let_ :: [defn] -> tm -> tm
 
 
 --------------------------------------------------------------------------------
@@ -270,8 +292,8 @@ class Let defn rep | rep -> defn, defn -> rep where
 --
 -- In light of this, we define a single 'Builtin' class that lets us dispatch on a statically known
 -- 'Symbol'. We also allow the return type to vary, which lets us implement things like builtin infix operators
--- in a natural way via @Builtin rep "+" (rep -> rep -> rep)@.
-class (KnownSymbol op) => Builtin (rep :: Type) (op :: Symbol) (tp :: Type) | rep op -> tp, op tp -> rep where
+-- in a natural way via @Builtin tm "+" (tm -> tm -> tm)@.
+class (KnownSymbol op) => Builtin (tm :: Type) (op :: Symbol) (tp :: Type) | tm op -> tp, op tp -> tm where
   -- | Make a builtin of a given type.
   --
   -- When writing generators, users are encouraged to use 'builtin' instead, as it
@@ -279,85 +301,85 @@ class (KnownSymbol op) => Builtin (rep :: Type) (op :: Symbol) (tp :: Type) | re
   mkBuiltin :: tp
 
 -- | Construct a builtin term.
-builtin :: forall rep tp. forall op -> (Builtin rep op tp) => tp
-builtin o = mkBuiltin @rep @o @tp
+builtin :: forall tm tp. forall op -> (Builtin tm op tp) => tp
+builtin o = mkBuiltin @tm @o @tp
 
-type Constant rep op = Builtin rep op rep
+type Constant tm op = Builtin tm op tm
 
 -- | Shorthand for a builtin that doesn't have any arguments.
-constant :: forall op -> Constant rep op => rep
+constant :: forall op -> Constant tm op => tm
 constant = builtin
 
-type Op1 rep op = Builtin rep op (rep -> rep)
+type Op1 tm op = Builtin tm op (tm -> tm)
 
 -- | Shorthand for a unary operator.
-op1 :: forall op -> Op1 rep op => rep -> rep
+op1 :: forall op -> Op1 tm op => tm -> tm
 op1 = builtin
 
-type Op2 rep op = Builtin rep op (rep -> rep -> rep)
+type Op2 tm op = Builtin tm op (tm -> tm -> tm)
 
 -- | Shorthand for a binary operator.
-op2 :: forall op -> Op2 rep op => rep -> rep -> rep
+op2 :: forall op -> Op2 tm op => tm -> tm -> tm
 op2 = builtin
 
 -- | Literals
 --
 -- Literals work like 'Builtin', but with a slight twist.
 -- Instead of a single @mkBuiltin :: tp@ method, the 'Literal' class
--- has a single @mkLit :: tp -> rep@ method, which reflects that literals
+-- has a single @mkLit :: tp -> tm@ method, which reflects that literals
 -- must always be built out of *something*. This also leads to marginally better inference.
-class (KnownSymbol sym) => Literal (rep :: Type) (sym :: Symbol) (tp :: Type) | rep sym -> tp where
+class (KnownSymbol sym) => Literal (tm :: Type) (sym :: Symbol) (tp :: Type) | tm sym -> tp where
   -- | Make a builtin of a given type.
   --
   -- When writing generators, users are encouraged to use 'lit' instead, as it
   -- has *much* better inference.
-  mkLit :: tp -> rep
+  mkLit :: tp -> tm
 
 -- | Construct a literal term.
-lit :: forall sym -> Literal rep sym tp => tp -> rep
+lit :: forall sym -> Literal tm sym tp => tp -> tm
 lit sym x = mkLit @_ @sym x
 
 -- | Construct a @Nat@ literal.
-nat :: (Literal rep "Nat" Natural) => Natural -> rep
+nat :: (Literal tm "Nat" Natural) => Natural -> tm
 nat = lit "Nat"
 
 -- | Construct a @List@ literal.
-list :: (Literal rep "List" [rep]) => [rep] -> rep
+list :: (Literal tm "List" [tm]) => [tm] -> tm
 list = lit "List"
 
--- | Construct a @Vec@ literal.
-vec :: (Literal rep "Vec" [rep]) => [rep] -> rep
-vec = lit "Vec"
-
 -- | Construct a @String@ literal.
-string :: (Literal rep "String" Text) => Text -> rep
+string :: (Literal tm "String" Text) => Text -> tm
 string = lit "String"
 
 --------------------------------------------------------------------------------
 -- Top-level modules
 
-class (Monoid m) => Module m defn | defn -> m, m -> defn where
+-- $topLevel
+--
+-- Basic grammar is
+--
+-- @
+-- module   := name hdr body
+-- hdr      := (import | defn)*
+-- body     := defn*
+-- defn     := topLhs tm
+-- topLhs   := topLhsHd cell*
+-- topLhsHd := name tm?
+-- @
+
+class (Monoid hdr, Monoid defns) => Module mod hdr defns | mod -> hdr, mod -> defns, hdr defns -> mod where
   -- | Construct a top-level module.
   module_
-    :: Text -- ^ The name of the module
-    -> m    -- ^ Module header.
-    -> m    -- ^ Module body.
-    -> m
-
-  -- | Create a top-level definition.
-  def :: defn -> m
-
-modDefs :: (Module m defn) => [defn] -> m
-modDefs = foldMap def
-
-class AnnTermDefn lhs tm defn | defn -> lhs, defn -> tm where
-  annTerm :: lhs -> tm -> tm -> defn
+    :: Text    -- ^ The name of the module
+    -> hdr     -- ^ Module header.
+    -> defns   -- ^ Module body.
+    -> mod
 
 --------------------------------------------------------------------------------
 -- Imports
 
-class (KnownSymbol i) => Import (m :: Type) (i :: Symbol) where
-  mkImport :: m
+class (KnownSymbol i) => Import (hdr :: Type) (i :: Symbol) where
+  mkImport :: hdr
 
-import_ :: forall i -> (Import m i) => m
+import_ :: forall i -> (Import hdr i) => hdr
 import_ i = mkImport @_ @i

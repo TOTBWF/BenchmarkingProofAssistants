@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Panbench.Generator.NestedLetAdditions where
+module Panbench.Generator.NestedLetFunctions where
 
 import Numeric.Natural
 
@@ -16,8 +16,8 @@ generator
      , Name name
      , Constant tm "Nat"
      , Constant tm "Nat", Literal tm "Nat" Natural, Op2 tm "+"
-     , Definition letDefn letLhs tm, ArgumentLhs letLhsHd letLhsArg letLhs, Syn nm letLhsHd
-     , Var nm tm, Let letDefn tm
+     , Definition letDefn letLhs tm, ArgumentLhs letLhsHd letLhsArg letLhs, Syn nm letLhsHd, Chk name tm letLhsArg
+     , Var nm tm, Let letDefn tm, App tm
      )
   => GenModule Natural hdr defns
 generator =
@@ -25,7 +25,10 @@ generator =
       [ import_ "Data.Nat"
       ] \size ->
       [ ([] |- ("n" .: builtin "Nat")) .=
-          let_ [ [] |- syn (nameN "x" 0) .= (nat 1)] $
-          let_ [ [] |- syn (nameN "x" i) .= (op2 "+" (varN "x" (i - 1)) (varN "x" (i - 1))) | i <- [1..size]] $
-          varN "x" size
+          let_ [
+            [ nameN "x" j .: builtin "Nat" | j <- [1..i] ] |- syn (nameN "f" i) .=
+                foldl (op2 "+") (nat 1) [ varN "x" j | j <- [1..i]]
+            | i <- [1..size]
+            ] $
+          foldr (\i -> op2 "+" (app (varN "f" i) [ nat j | j <- [1..i] ])) (app (varN "f" 1) [nat 2]) [2..size]
       ]
