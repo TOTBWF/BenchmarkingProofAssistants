@@ -11,7 +11,7 @@ build-type:         Simple
 extra-doc-files:    CHANGELOG.md
 
 common warnings
-    ghc-options: -Wall -Wno-name-shadowing
+    ghc-options: -Wall -Wno-name-shadowing -Wno-unused-top-binds
 
 common extensions
      default-extensions:
@@ -30,7 +30,8 @@ library
         Grammar,
         Panbench.Data.List.Bwd,
         Panbench.Grammar,
-        -- Panbench.Grammar.Agda,
+        Panbench.Grammar.Agda,
+        Panbench.Grammar.Cell,
         -- Panbench.Grammar.Rocq,
         -- Panbench.Grammar.Idris,
         -- Panbench.Grammar.Lean,

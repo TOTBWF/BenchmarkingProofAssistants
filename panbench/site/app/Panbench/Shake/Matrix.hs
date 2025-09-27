@@ -38,14 +38,14 @@ data BenchmarkMatrixRow size where
   -- | Pack up a 'GenModule' along with a 'ShakeLang' dictionary.
   --
   -- Users are encouraged to use 'benchmarkMatrixRow', which takes an explicit type argument.
-  BenchmarkMatrixRow :: forall m rep size. (ShakeLang m rep) => GenModule size m rep -> BenchmarkMatrixRow size
+  BenchmarkMatrixRow :: forall rep m hdr defn size. (ShakeLang m hdr defn rep) => GenModule size hdr defn -> BenchmarkMatrixRow size
 
 
 -- | Make a benchmarking matrix row.
 benchmarkMatrixRow
-  :: forall m size. forall rep
-  -> (ShakeLang m rep)
-  => GenModule size m rep
+  :: forall m hdr defn size. forall rep
+  -> (ShakeLang m hdr defn rep)
+  => GenModule size hdr defn
   -> BenchmarkMatrixRow size
 benchmarkMatrixRow _ = BenchmarkMatrixRow
 
@@ -98,7 +98,7 @@ needBenchmarkMatrix
   :: BenchmarkMatrix
   -> Action BenchmarkMatrixStats
 needBenchmarkMatrix (BenchmarkMatrix _ sizes rows) = BenchmarkMatrixStats <$>
-  for (liftA2 (,) sizes rows) \(size, BenchmarkMatrixRow @_ @rep gen) -> do
+  for (liftA2 (,) sizes rows) \(size, BenchmarkMatrixRow @rep gen) -> do
     bin <- needLang rep
     (dir, file) <- splitFileName <$> needModule gen size
     cleanBuildArtifacts rep dir

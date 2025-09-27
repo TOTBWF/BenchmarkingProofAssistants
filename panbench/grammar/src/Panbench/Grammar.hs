@@ -83,17 +83,6 @@ class AnonChk tm cell | cell -> tm where
 class AnonSyn tm cell | cell -> tm where
   anonSyn :: cell
 
---------------------------------------------------------------------------------
--- Deriving-via helpers
-
-newtype SingletonCell cell = SingletonCell cell
-
-instance Syns nm cell => Syn nm (SingletonCell cell) where
-  syn nm = SingletonCell (syns [nm])
-
-instance Chks nm tm cell => Chk nm tm (SingletonCell cell) where
-  chk nm tm = SingletonCell (chks [nm] tm)
-
 -- | Infix operator for 'chk'.
 (.:) :: (Chk nm tm cell) => nm -> tm -> cell
 (.:) = chk
@@ -227,22 +216,13 @@ class Newline defn where
 -- @
 --
 -- as definining a term @A : Type, x : Nat, y : Nat ⊢ foo A x y : Vec (x + y)@.
-class ArgumentLhs hd cell lhs | lhs -> cell, lhs -> hd where
+class TelescopeLhs lhs hd cell | lhs -> cell, lhs -> hd where
   (|-) :: [cell] -> hd -> lhs
 
 infix 1 |-
 
--- | Shorthand for annotated telescope left-hand sides.
-type TelescopeLhs name tm lhs hd cell = (ArgumentLhs hd cell lhs, Chk name tm hd, Chk name tm cell)
-
 --------------------------------------------------------------------------------
 -- Terms
-
-class (Name nm) => Var nm tm | tm -> nm where
-  var :: nm -> tm
-
-varN :: (Var nm tm) => nm -> Natural -> tm
-varN nm i = var (nameN nm i)
 
 -- | Pi-types.
 class Pi tm cell | tm -> cell where
@@ -277,6 +257,9 @@ appN fn size arg = app fn [ arg i | i <- [1..size] ]
 class Let defn tm | tm -> defn, defn -> tm where
   let_ :: [defn] -> tm -> tm
 
+
+class Underscore tm where
+  underscore :: tm
 
 --------------------------------------------------------------------------------
 -- Operators and Builtins
@@ -367,12 +350,12 @@ string = lit "String"
 -- topLhsHd := name tm?
 -- @
 
-class (Monoid hdr, Monoid defns) => Module mod hdr defns | mod -> hdr, mod -> defns, hdr defns -> mod where
+class (Monoid hdr, Monoid defn) => Module mod hdr defn | mod -> hdr, mod -> defn, hdr defn -> mod where
   -- | Construct a top-level module.
   module_
     :: Text    -- ^ The name of the module
     -> hdr     -- ^ Module header.
-    -> defns   -- ^ Module body.
+    -> defn    -- ^ Module body.
     -> mod
 
 --------------------------------------------------------------------------------

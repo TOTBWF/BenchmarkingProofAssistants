@@ -1,7 +1,3 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 module Panbench.Generator.NestedLetAdditions where
 
 import Numeric.Natural
@@ -9,23 +5,13 @@ import Numeric.Natural
 import Panbench.Generator
 import Panbench
 
-generator
-  :: ( Module mod hdr defns
-     , Import hdr "Data.Nat"
-     , Definition defns topLhs tm, ArgumentLhs topLhsHd topLhsArg topLhs, Chk name tm topLhsHd
-     , Name name
-     , Constant tm "Nat"
-     , Constant tm "Nat", Literal tm "Nat" Natural, Op2 tm "+"
-     , Definition letDefn letLhs tm, ArgumentLhs letLhsHd letLhsArg letLhs, Syn nm letLhsHd
-     , Var nm tm, Let letDefn tm
-     )
-  => GenModule Natural hdr defns
+generator :: _ => GenModule Natural hdr defns
 generator =
     GenModule "LetAddExample"
       [ import_ "Data.Nat"
       ] \size ->
       [ ([] |- ("n" .: builtin "Nat")) .=
           let_ [ [] |- syn (nameN "x" 0) .= (nat 1)] $
-          let_ [ [] |- syn (nameN "x" i) .= (op2 "+" (varN "x" (i - 1)) (varN "x" (i - 1))) | i <- [1..size]] $
-          varN "x" size
+          let_ [ [] |- syn (nameN "x" i) .= (op2 "+" (nameN "x" (i - 1)) (nameN "x" (i - 1))) | i <- [1..size]] $
+          nameN "x" size
       ]

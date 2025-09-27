@@ -18,6 +18,7 @@ import Data.Traversable
 import Development.Shake
 
 import Panbench.Generator
+import Panbench.Grammar
 import Panbench.Grammar.Agda
 import Panbench.Shake.File
 import Panbench.Shake.Lang.Agda
@@ -26,7 +27,7 @@ import System.FilePath
 
 -- | Rules for installing, building, and cleaning files
 -- for a given language
-class ShakeLang m rep | m -> rep, rep -> m where
+class (Module m hdr defn) => ShakeLang m hdr defn rep | m -> rep, rep -> m where
   -- | User-facing name of the language.
   langName :: forall rep' -> (rep ~ rep') => String
 
@@ -42,7 +43,7 @@ class ShakeLang m rep | m -> rep, rep -> m where
 
   -- | Require that a module described by a 'Gen' get built.
   -- This should return an absolute filepath.
-  needModule :: (Show size) => GenModule size m rep -> size -> Action FilePath
+  needModule :: (Show size) => GenModule size hdr defn -> size -> Action FilePath
 
   -- | Clean all build artifacts for a language in the given directory.
   cleanBuildArtifacts :: forall rep' -> (rep ~ rep') => FilePath -> Action ()
@@ -54,7 +55,7 @@ class ShakeLang m rep | m -> rep, rep -> m where
 -- actually know how generate and typecheck the module.
 data SomeLangModule where
   -- | Pack a 'GenModule' alongside a 'ShakeLang' dictionary.
-  SomeLangModule :: forall m rep size. (ShakeLang m rep, Show size) => GenModule size m rep -> size -> SomeLangModule
+  SomeLangModule :: forall m hdr defn rep size. (ShakeLang m hdr defn rep, Show size) => GenModule size hdr defn -> size -> SomeLangModule
 
 -- | Get the output file for a module in a standardized format.
 --
@@ -86,7 +87,7 @@ needModules gens =
 --------------------------------------------------------------------------------
 -- Instances
 
-instance ShakeLang (Agda ann) (Agda ann) where
+instance ShakeLang (AgdaMod ann) (AgdaHeader ann) (AgdaDefn ann) (Agda ann) where
   langName _ = "agda"
   langExt _ = ".agda"
   needLang _ = do

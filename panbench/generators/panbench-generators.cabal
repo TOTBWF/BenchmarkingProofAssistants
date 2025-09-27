@@ -10,7 +10,7 @@ build-type:         Simple
 extra-doc-files:    CHANGELOG.md
 
 common warnings
-    ghc-options: -Wall -Wno-name-shadowing
+    ghc-options: -Wall -Wno-name-shadowing -Wno-partial-type-signatures
 
 common extensions
      default-extensions:
@@ -21,7 +21,12 @@ common extensions
        GeneralizedNewtypeDeriving,
        ImportQualifiedPost,
        LambdaCase,
-       OverloadedStrings
+       OverloadedStrings,
+       DataKinds,
+       FlexibleContexts,
+       TypeApplications,
+       ScopedTypeVariables,
+       PartialTypeSignatures
 
 library
     import: warnings, extensions

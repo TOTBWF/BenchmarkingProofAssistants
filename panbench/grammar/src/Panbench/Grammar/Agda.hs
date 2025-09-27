@@ -5,262 +5,214 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 
 -- | Pretty printer for Agda.
 module Panbench.Grammar.Agda
-  ( Agda(..)
+  ( Agda
+  , AgdaMod(..)
+  , AgdaHeader(..)
+  , AgdaDefn(..)
+  , AgdaTm(..)
   ) where
 
 import Prelude hiding (pi)
 
-import Data.Text (Text)
-
+import Data.Coerce
+import Data.Functor.Identity
 import Data.Maybe
 import Data.String (IsString(..))
+import Data.Text (Text)
 
+import Numeric.Natural
+
+import Panbench.Grammar.Cell
 import Panbench.Grammar
 import Panbench.Pretty
 
-newtype Agda ann = AgdaDoc { getAgda :: Doc ann }
+data Agda ann
+
+newtype AgdaTm ann = AgdaTm (Doc ann)
   deriving newtype (Semigroup, Monoid, IsString)
 
-instance Name (Agda ann) where
+newtype AgdaName ann = AgdaName (Doc ann)
+  deriving newtype (Semigroup, Monoid, IsString)
+
+instance Name (AgdaName ann) where
   nameN = subscript
 
 --------------------------------------------------------------------------------
 -- Cells
 
-data Visibility
+data AgdaVis
   = Visible
   -- ^ Visible arguments like @(x : A)@.
   | Implicit
   -- ^ Implicit arguments like @(x : A)@.
   deriving (Eq)
 
-data Cell ann =
-  Cell
-  { cellVis :: Visibility
-  -- ^ Visibility for cells.
-  , cellNames :: [Agda ann]
-  -- ^ Names being bound by this cell.
-  , cellAnn :: Maybe (Agda ann)
-  -- ^ An optional type annotation.
-  }
-
-instance Syns (Agda ann) (Cell ann) where
-  syns nms = Cell Visible nms Nothing
-
-instance Chks (Agda ann) (Agda ann) (Cell ann) where
-  chks nms ann = Cell Visible nms (Just ann)
-
-deriving via SingletonCell (Cell ann) instance Syn (Agda ann) (Cell ann)
-deriving via SingletonCell (Cell ann) instance Chk (Agda ann) (Agda ann) (Cell ann)
-
-instance Implicit (Cell ann) where
-  implicit cell = cell { cellVis = Implicit }
-
--- | View a 'Cell' that has an annotation.
-viewChkCell :: Cell ann -> Maybe (Visibility, [(Agda ann)], Agda ann)
-viewChkCell (Cell _ _ Nothing) = Nothing
-viewChkCell (Cell vis nms (Just ann)) = Just (vis, nms, ann)
-
--- | View a 'Cell' that lacks an annotation.
-viewSynCell :: Cell ann -> Maybe (Visibility, [(Agda ann)])
-viewSynCell (Cell _ _ (Just _)) = Nothing
-viewSynCell (Cell vis nms Nothing) = Just (vis, nms)
-
---------------------------------------------------------------------------------
--- Binders
+type AgdaMultiCell info ann = MultiCell info (AgdaName ann) (AgdaTm ann)
+type AgdaSingleCell info ann = SingleCell info (AgdaName ann) (AgdaTm ann)
+type AgdaRequiredCell info ann = Cell info Identity (AgdaName ann) Identity (AgdaTm ann)
 
 -- | Surround a document with the appropriate delimiters for a given 'Visibility'.
-withVisibility :: Visibility -> Agda ann -> Agda ann
-withVisibility Visible = enclose "(" ")"
-withVisibility Implicit = enclose "{" "}"
+agdaVis :: (IsDoc doc, IsString (doc ann)) => AgdaVis -> doc ann -> doc ann
+agdaVis Visible = enclose "(" ")"
+agdaVis Implicit = enclose "{" "}"
 
--- | Render a 'Cell'.
-cell :: Cell ann -> Agda ann
-cell (Cell vis nm (Just ann)) = withVisibility vis (hsep nm <+> ":" <+> ann)
-cell (Cell vis nm Nothing) = withVisibility vis (hsep nm)
 
--- | Render a list of 'Cell's.
-cells :: [Cell ann] -> Agda ann
-cells = hsepMap cell
+-- | Render an Agda binding cell.
+--
+-- We use a bit of a trick here for annotations. Both 'Identity' and 'Maybe' are 'Foldable', so
+-- we can write a single function that handles optional and required annotations by checking if
+-- the annotation is empty with 'null', and then folding over it to actually print.
+agdaCell :: (Foldable arity, Foldable tpAnn, IsDoc doc, IsString (doc ann)) => Cell AgdaVis arity (AgdaName ann) tpAnn (AgdaTm ann) -> doc ann
+agdaCell (Cell vis names tp) | null tp = agdaVis vis (hsepMap coerce names)
+                             | otherwise = agdaVis vis (hsepMap coerce names <+> ":" <+> hsepMap coerce tp)
+
+agdaCells :: (Foldable arity, Foldable tpAnn, IsDoc doc, IsString (doc ann)) => [Cell AgdaVis arity (AgdaName ann) tpAnn (AgdaTm ann)] -> doc ann
+agdaCells = hsepMap agdaCell
 
 --------------------------------------------------------------------------------
--- Let-binding left-hand-sides
+-- Top-level definitions
 
--- | A Left-hand side head for a local let binding.
-data LetLhsHead ann =
-  LetLhsHead
-  { letLhsHeadName :: Agda ann
-  -- ^ The name of the left-hand side head.
-  , letLhsHeadAnn :: Maybe (Agda ann)
-  -- ^ The return type of the let binding.
-  --
-  -- EG: for a binding like
-  --
-  -- @
-  -- let replicate : {ℓ} {A : Set ℓ} (x : Nat) → A → Vec A n
-  -- let replicate = ...
-  -- @
-  --
-  -- The corresponding @letLhsHeadAnn@ is @Just (Vec A n)@.
-  }
+newtype AgdaDefn ann = AgdaDefn (Doc ann)
+  deriving newtype (Semigroup, Monoid, IsString)
 
--- | A left-hand side for a local let binding.
-data LetLhs ann =
-  LetLhs
-  { letLhsHead :: LetLhsHead ann
-  -- ^ The head of the let binding.
-  , letLhsArgs :: [[Cell ann]]
-  -- ^ Telescope of arguments to the let binding.
-  --
-  -- We use a list of lists here to allow us to retain grouping information
-  -- for type annotations.
-  }
+-- [TODO: Reed M, 27/09/2025] This feels bad, and should probably be some sort of newtype deriving?
+data AgdaTmDefnLhs ann
+  = AgdaTmDefnLhs [AgdaMultiCell AgdaVis ann] (AgdaSingleCell () ann)
 
--- | Compute a type annotation for a local let binding.
---
--- If the head and all arguments are unannotated, then we consider
--- the entire let binding to be un-annotated.
---
--- If we have annotated arguments but the head is unannoted, then we generate
--- a pi type with an underscore for the return type. like @(x : A) -> _@.
-letLhsTpAnn :: LetLhs ann -> Maybe (Agda ann)
-letLhsTpAnn (LetLhs (LetLhsHead nm Nothing) (traverse (traverse viewSynCell) -> Nothing)) = Nothing
-letLhsTpAnn (LetLhs (LetLhsHead nm ann) cells) =
-  let returnTp = fromMaybe "_" ann
-      tp = foldr (\cells tp -> pi cells tp) returnTp cells
-  in Just tp
+instance TelescopeLhs (AgdaTmDefnLhs ann) (AgdaSingleCell () ann) (AgdaMultiCell AgdaVis ann) where
+  (|-) = AgdaTmDefnLhs
 
-instance SimpleLhs (LetLhsHead ann) (LetLhs ann) where
-  lhsHd hd = LetLhs hd []
+instance Definition (AgdaDefn ann) (AgdaTmDefnLhs ann) (AgdaTm ann) where
+  (AgdaTmDefnLhs (UnAnnotatedCells tele) (UnAnnotatedCell (SingleCell _ nm _))) .= e =
+    doc $
+    nest 4 (undoc nm <+> agdaCells tele <+> "=" <\?> undoc e)
+  (AgdaTmDefnLhs tele (SingleCell _ nm ann)) .= e =
+    doc $
+    nest 4 (undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore ann))) <\>
+    nest 4 (undoc nm <+> agdaCells tele <+> "=" <\?> undoc e)
 
-instance ArgumentLhs (LetLhsHead ann) [(Cell ann)] (LetLhs ann) where
-  lhsArgs cells hd = LetLhs hd cells
+instance Postulate (AgdaDefn ann) (AgdaTmDefnLhs ann) where
+  postulate (AgdaTmDefnLhs tele (SingleCell _ nm ann)) =
+    doc $
+    nest 4 (undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore ann)))
+
+data AgdaDataDefnLhs ann
+  = AgdaDataDefnLhs [AgdaMultiCell AgdaVis ann] (AgdaRequiredCell () ann)
+
+instance DataDefinition (AgdaDefn ann) (AgdaDataDefnLhs ann) (AgdaRequiredCell () ann) where
+  data_ (AgdaDataDefnLhs params (SingleCell _ nm (Identity tp))) ctors =
+    doc $
+    nest 2 $
+      "data" <+> undoc nm <+> agdaCells params <+> ":" <+> undoc tp <+> "where" <\>
+      hsepFor ctors \(SingleCell _ nm (Identity tp)) ->
+        nest 2 $ undoc nm <+> ":" <\?> undoc tp
+
+data AgdaRecordDefnLhs ann
+  = AgdaRecordDefnLhs [AgdaMultiCell AgdaVis ann] (AgdaRequiredCell () ann)
+
+instance RecordDefinition (AgdaDefn ann) (AgdaRecordDefnLhs ann) (AgdaName ann) (AgdaRequiredCell () ann) where
+  record_ (AgdaRecordDefnLhs params (SingleCell _ nm (Identity tp))) ctor fields =
+    doc $
+    nest 2 $ hardlines
+    [ "record" <+> undoc nm <+> agdaCells params <+> ":" <+> undoc tp <+> "where"
+    , "constructor" <+> undoc ctor
+    , nest 2 $ hardlines
+      [ "fields"
+      , hsepFor fields \(SingleCell _ nm (Identity tp)) ->
+        nest 2 $ undoc nm <+> ":" <\?> undoc tp
+      ]
+    ]
+
+instance Newline (AgdaDefn ann) where
+  newlines n = hardlines (replicate (fromIntegral n) mempty)
 
 --------------------------------------------------------------------------------
--- Let bindings
-
--- | A single let binding, sans the body.
-data LetBinding ann =
-  LetBinding
-  { letBindingLhs :: LetLhs ann
-  -- ^ The left-hand side of a let binding.
-  , letBindingRhs :: Agda ann
-  -- ^ The right-hand side of a let binding
-  }
-
-instance LetDef (LetLhs ann) (Agda ann) [LetBinding ann] where
-  letDef lhs e = [LetBinding lhs e]
-
-instance LetDefs [LetBinding ann] where
-  letDefs = concat
-
--- | Render a single let binding.
+-- Let Bindings
 --
--- [FIXME: Reed M, 25/09/2025] We discard any visibility information when rendering out
--- argument binders here.
-letBindingTpAnn :: LetBinding ann -> (Maybe (Agda ann), Agda ann)
-letBindingTpAnn (LetBinding lhs@(LetLhs (LetLhsHead nm _) args) rhs) =
-  ( fmap (nm <+> ":" <+>) (letLhsTpAnn lhs)
-  , nm <+> hsep (getVisibleArgs args) <+> "=" <\?> rhs
-  )
-  where
-    -- Get only the visible arguments and remove any cell grouping.
-    getVisibleArgs :: [[Cell ann]] -> [Agda ann]
-    getVisibleArgs = concatMap $ concatMap \cell ->
-      case cellVis cell of
-        Visible -> cellNames cell
-        _ -> []
+-- Right now, these are identical to top-level bindings, but in the future they
+-- will include different left-hand sides.
 
--- | Render a let binding sans the @let@ and @in e@.
-letBinding :: LetBinding ann -> Agda ann
-letBinding def =
-  case letBindingTpAnn def of
-    (Just ann, def) -> ann <\> def
-    (Nothing, def) -> def
+newtype AgdaLet ann = AgdaLet (Doc ann)
+  deriving newtype (Semigroup, Monoid, IsString)
+
+data AgdaLetDefnLhs ann
+  = AgdaLetDefnLhs [AgdaMultiCell AgdaVis ann] (AgdaSingleCell () ann)
+
+instance TelescopeLhs (AgdaLetDefnLhs ann) (AgdaSingleCell () ann) (AgdaMultiCell AgdaVis ann) where
+  (|-) = AgdaLetDefnLhs
+
+instance Definition (AgdaLet ann) (AgdaLetDefnLhs ann) (AgdaTm ann) where
+  (AgdaLetDefnLhs (UnAnnotatedCells tele) (UnAnnotatedCell (SingleCell _ nm _))) .= e =
+    doc $
+    nest 4 (undoc nm <+> agdaCells tele <+> "=" <\?> undoc e)
+  (AgdaLetDefnLhs tele (SingleCell _ nm ann)) .= e =
+    doc $
+    nest 4 (undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore ann))) <\>
+    nest 4 (undoc nm <+> agdaCells tele <+> "=" <\?> undoc e)
+
+instance Let (AgdaLet ann) (AgdaTm ann) where
+  let_ [] e = e
+  let_ defns e =
+    doc $
+    group ("let" <+> nest 4 (undoc $ hardlines defns) <\?> "in" <+> undoc e)
+
 
 --------------------------------------------------------------------------------
 -- Terms
 
-instance Var (Agda ann) (Agda ann) where
-  var = id
+instance Name (AgdaTm ann) where
+  nameN = subscript
 
-instance Pi [Cell ann] (Agda ann) where
+instance Pi (AgdaTm ann) (AgdaMultiCell AgdaVis ann) where
   pi [] body = body
-  pi args body = cells args <\?> "→" <+> body
+  pi args body = agdaCells args <\?> "→" <+> body
 
-instance Let [LetBinding ann] (Agda ann) where
-  let_ [] body =
-    body
-  let_ [letBindingTpAnn -> (Nothing, def)] body =
-    -- For single un-annotated let bindings, we do our best to try and lay things
-    -- out on a single line.
-    "let" <+> nest 4 def <\?> "in" <+> body
-  let_ defs body =
-    "let" <+> nest 4 (hardlinesMap letBinding defs) <\> "in" <+> body
+instance Underscore (AgdaTm ann) where
+  underscore = "_"
 
--- --------------------------------------------------------------------------------
--- -- Modules
+instance Literal (AgdaTm ann) "Nat" Natural where
+  mkLit = pretty
 
--- -- instance Module (Agda ann) (Agda ann) where
--- --   module_ nm header body =
--- --     hardlines
--- --     [ "module" <+> pretty nm <+> "where"
--- --     , mempty
--- --     , header
--- --     , mempty
--- --     , body
--- --     ]
+instance Builtin (AgdaTm ann) "Nat" (AgdaTm ann) where
+  mkBuiltin = "Nat"
 
--- --   def = id
+instance Builtin (AgdaTm ann) "+" (AgdaTm ann -> AgdaTm ann -> AgdaTm ann) where
+  mkBuiltin x y = x <+> "+" <+> y
 
--- -- --------------------------------------------------------------------------------
--- -- -- Top-level definitions
+--------------------------------------------------------------------------------
+-- Modules
 
--- data AgdaTopLhsHd ann
---   = AgdaTopLhsHd
---   { agdaTopLhsName :: Agda ann
---   -- ^ The name of the top-level binding.
---   , agdaTopLhsAnn  :: Maybe (Agda ann)
---   -- ^ The return type of the top level binding.
---   --
---   -- EG: for a binding like
---   --
---   -- @
---   -- replicate : {ℓ} {A : Set ℓ} (x : Nat) → A → Vec A n
---   -- replicate = ...
---   -- @
---   --
---   -- The corresponding @agdaTopLhsAnn@ is @Vec A n@.
---   }
+newtype AgdaMod ann = AgdaMod { getAgda :: Doc ann }
+  deriving newtype (Semigroup, Monoid, IsString)
 
--- data AgdaTopLhs ann
---   = AgdaTopLhs
---   { agdaTopLhsHd   :: AgdaTopLhsHd ann
---   -- ^ The head of the top level definition.
---   , agdaTopLhsArgs :: [(Cell ann)]
---   -- ^ Arguments to the top level definition.
---   }
+newtype AgdaHeader ann = AgdaHeader (Doc ann)
+  deriving newtype (Semigroup, Monoid, IsString)
 
--- instance SimpleLhs (AgdaTopLhsHd ann) (AgdaTopLhs ann) where
---   lhsHd hd = AgdaTopLhs hd []
-
--- instance ArgumentLhs (AgdaTopLhsHd ann) [Cell ann] (AgdaTopLhs ann) where
---   lhsArgs args hd = __
+instance Module (AgdaMod ann) (AgdaHeader ann) (AgdaDefn ann) where
+  module_ nm header body =
+    doc $ hardlines
+    [ "module" <+> pretty nm <+> "where"
+    , mempty
+    , undoc header
+    , mempty
+    , undoc body
+    ]
 
 --------------------------------------------------------------------------------
 -- Imports
 
-openImport :: Text -> Agda ann
+openImport :: Text -> AgdaHeader ann
 openImport m = "open" <+> "import" <+> pretty m <> hardline
 
-instance Import (Agda ann) "Data.Nat" where
+instance Import (AgdaHeader ann) "Data.Nat" where
   mkImport = openImport "Agda.Builtin.Nat"
 
-instance Import (Agda ann) "Data.List" where
+instance Import (AgdaHeader ann) "Data.List" where
   mkImport = openImport "Agda.Builtin.List"
 
-instance Import (Agda ann) "Data.String" where
+instance Import (AgdaHeader ann) "Data.String" where
   mkImport = openImport "Agda.Builtin.String"

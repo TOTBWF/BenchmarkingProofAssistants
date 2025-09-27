@@ -4,10 +4,13 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE StandaloneKindSignatures #-}
 -- |
 module Panbench.Pretty
   ( IsDoc
   , doc
+  , undoc
+  , undocs
   , pretty
   , renderVia
   -- * Constants
@@ -39,6 +42,7 @@ module Panbench.Pretty
   , vcat
   , hardlines
   , hsepMap
+  , hsepFor
   , vcatMap
   , hardlinesMap
   , punctuate
@@ -60,7 +64,8 @@ import Numeric.Natural
 import Prettyprinter qualified as P
 import Prettyprinter.Render.Text qualified as P
 
-type IsDoc (doc :: Type -> Type) = forall ann. Coercible (P.Doc ann) (doc ann)
+type IsDoc :: (Type -> Type) -> Constraint
+type IsDoc doc = (forall ann. Coercible (P.Doc ann) (doc ann))
 
 doc :: (IsDoc doc) => P.Doc ann -> doc ann
 doc = coerce
@@ -246,6 +251,9 @@ vcatMap = concatMapWith (\x y -> x <-> line' <-> y)
 -- FIXME: All of these should use some variant of foldr1 or something??
 hsepMap :: (IsDoc doc, Foldable t) => (a -> doc ann) -> t a -> doc ann
 hsepMap = concatMapWith (<+>)
+
+hsepFor :: (IsDoc doc, Foldable t) => t a -> (a -> doc ann) -> doc ann
+hsepFor = flip hsepMap
 
 hardlinesMap :: (IsDoc doc, Foldable t) => (a -> doc ann) -> t a -> doc ann
 hardlinesMap = concatMapWith (<\>)
