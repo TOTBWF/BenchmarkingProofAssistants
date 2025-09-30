@@ -185,7 +185,7 @@ instance Pi (AgdaTm ann) (AgdaMultiCell AgdaVis ann) where
   pi args body = agdaCells args <> "→" <+> body
 
 instance App (AgdaTm ann) where
-  app fn args = foldr (<+>) fn args
+  app fn args = foldl (<+>) fn args
 
 instance Underscore (AgdaTm ann) where
   underscore = "_"
