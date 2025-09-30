@@ -101,12 +101,12 @@ instance Definition (AgdaDefn ann) (AgdaTmDefnLhs ann) (AgdaTm ann) where
   (UnAnnotatedCells tele :- SingleCell _ nm Nothing) .= e =
     doc $
     nest 2 $
-    undoc nm <+> agdaCells tele <> "=" <> group (line <> undoc e)
+    undoc nm <+> agdaCells tele <> "=" <\?> undoc e
   (tele :- SingleCell _ nm ann) .= e =
     doc $
     hardlinesMap (nest 2)
     [ undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore ann))
-    , undoc nm <+> agdaCells tele <> "=" <> group (line <> undoc e)
+    , undoc nm <+> agdaCells tele <> "=" <\?> undoc e
     ]
 
 type AgdaPostulateDefnLhs ann = AgdaTelescope () Identity ann
@@ -122,7 +122,7 @@ instance DataDefinition (AgdaDefn ann) (AgdaDataDefnLhs ann) (AgdaRequiredCell (
   data_ (params :- RequiredCell _ nm tp) ctors =
     doc $
     nest 2 $
-      "data" <+> undoc nm <+> agdaCells params <+> ":" <+> undoc tp <+> "where" <\>
+      "data" <+> undoc nm <+> agdaCells params <> ":" <+> undoc tp <+> "where" <\>
       hardlinesFor ctors \(RequiredCell _ nm tp) ->
         nest 2 $ undoc nm <+> ":" <\?> undoc tp
 
@@ -198,6 +198,9 @@ instance Builtin (AgdaTm ann) "Nat" (AgdaTm ann) where
 
 instance Builtin (AgdaTm ann) "+" (AgdaTm ann -> AgdaTm ann -> AgdaTm ann) where
   mkBuiltin x y = x <+> "+" <+> y
+
+instance Builtin (AgdaTm ann) "Type" (AgdaTm ann) where
+  mkBuiltin = "Set"
 
 --------------------------------------------------------------------------------
 -- Modules
