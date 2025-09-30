@@ -106,7 +106,7 @@ type LeanTmDefnLhs ann = LeanTelescope () Maybe ann
 instance Definition (LeanDefn ann) (LeanTmDefnLhs ann) (LeanTm ann) where
   (tele :- SingleCell _ nm tp) .= tm =
     leanDef $
-    nest 4 $
+    nest 2 $
     "def" <+> undoc nm <+> leanCells tele <> undoc (maybe mempty (":" <+>) tp) <+> ":=" <\?>
       undoc tm
 
@@ -115,7 +115,7 @@ type LeanPostulateDefnLhs ann = LeanTelescope () Identity ann
 instance Postulate (LeanDefn ann) (LeanPostulateDefnLhs ann) where
   postulate (tele :- RequiredCell _ nm tp) =
     leanDef $
-    nest 4 $
+    nest 2 $
     "axiom" <+> undoc nm <+> leanCells tele <> ":" <+> undoc tp
 
 type LeanDataDefnLhs ann = LeanTelescope () Identity ann
