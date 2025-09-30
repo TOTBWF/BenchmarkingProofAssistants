@@ -126,7 +126,7 @@ instance DataDefinition (LeanDefn ann) (LeanDataDefnLhs ann) (LeanRequiredCell (
     nest 2 $
     "inductive" <+> undoc nm <+> leanCells params <> ":" <+> undoc tp <+> "where" <\>
       hardlinesFor ctors \(RequiredCell _ ctorNm ctorTp) ->
-        "|" <+> undoc ctorNm <+> ":" <+> undoc ctorTp
+        "|" <+> undoc ctorNm <+> ":" <+> nest 2 (undoc ctorTp)
 
 type LeanRecordDefnLhs ann = LeanTelescope () Identity ann
 
@@ -175,7 +175,7 @@ instance Name (LeanTm ann) where
   nameN = subscript
 
 instance Pi (LeanTm ann) (LeanMultiCell LeanVis ann) where
-  pi arg body = leanCells arg <> "→" <+> body
+  pi arg body = leanCells arg <> "→" <\?> body
 
 instance Arr (LeanTm ann) (LeanAnonCell LeanVis ann) where
   arr (Cell _ _ ann) body = fromMaybe underscore ann <+> "->" <+> body
