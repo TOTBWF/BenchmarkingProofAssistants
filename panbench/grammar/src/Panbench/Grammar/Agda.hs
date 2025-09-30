@@ -205,15 +205,14 @@ instance Builtin (AgdaTm ann) "+" (AgdaTm ann -> AgdaTm ann -> AgdaTm ann) where
 newtype AgdaMod ann = AgdaMod { getAgda :: Doc ann }
   deriving newtype (Semigroup, Monoid, IsString)
 
-newtype AgdaHeader ann = AgdaHeader (Doc ann)
-  deriving newtype (Semigroup, Monoid, IsString)
+newtype AgdaHeader ann = AgdaHeader [Doc ann]
+  deriving newtype (Semigroup, Monoid)
 
 instance Module (AgdaMod ann) (AgdaHeader ann) (AgdaDefn ann) where
-  module_ nm header body =
+  module_ nm (AgdaHeader header) body =
     doc $ hardlines
     [ "module" <+> pretty nm <+> "where"
-    , mempty
-    , undoc header
+    , if null header then mempty else hardline <> hardlines header
     , undoc body
     , mempty
     ]
@@ -222,7 +221,7 @@ instance Module (AgdaMod ann) (AgdaHeader ann) (AgdaDefn ann) where
 -- Imports
 
 openImport :: Text -> AgdaHeader ann
-openImport m = "open" <+> "import" <+> pretty m <> hardline
+openImport m = AgdaHeader ["open" <+> "import" <+> pretty m <> hardline]
 
 instance Import (AgdaHeader ann) "Data.Nat" where
   mkImport = openImport "Agda.Builtin.Nat"
