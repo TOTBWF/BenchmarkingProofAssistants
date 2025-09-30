@@ -7,6 +7,7 @@ import Data.Text as T
 import Data.ByteString.Lazy as LBS
 
 import Panbench.Grammar.Agda
+import Panbench.Grammar.Rocq
 
 import Panbench.Generator
 
@@ -94,7 +95,15 @@ agdaModuleTest
   -> size
   -> TestTree
 agdaModuleTest gen size =
-  printTestForLang "agda" (genModuleVia getAgda size) ".agda" (T.unpack (genName gen)) gen
+  printTestForLang "agda" (genModuleVia getAgdaMod size) ".agda" (T.unpack (genName gen)) gen
+
+
+rocqModuleTest
+  :: GenModule size (RocqHeader ()) (RocqDefn ())
+  -> size
+  -> TestTree
+rocqModuleTest gen size =
+  printTestForLang "rocq" (genModuleVia getRocqMod size) ".v" (T.unpack (genName gen)) gen
 
 -- * Tests
 --
@@ -122,5 +131,22 @@ main = defaultMain $
     , agdaModuleTest SequentialDependentRecords.generator 5
     , agdaModuleTest SequentialSimpleRecords.generator 5
     , agdaModuleTest SimpleDataDefinitions.generator 5
+    ]
+  , testGroup "Rocq"
+    [ rocqModuleTest DatatypeParameters.generator 5
+    , rocqModuleTest LargeDependentRecord.generator 5
+    , rocqModuleTest LargeIndexedDatatype.generator 5
+    , rocqModuleTest LargeIndexedParameterisedDatatype.generator 5
+    , rocqModuleTest LargeSimpleDatatype.generator 5
+    , rocqModuleTest LargeSimpleRecord.generator 5
+    , rocqModuleTest NestedLet.generator 5
+    , rocqModuleTest NestedLetAdditions.generator 5
+    , rocqModuleTest NestedLetFunctions.generator 5
+    , rocqModuleTest Newlines.generator 5
+    , rocqModuleTest RecordParameters.generator 5
+    , rocqModuleTest SequentialDefinitions.generator 5
+    , rocqModuleTest SequentialDependentRecords.generator 5
+    , rocqModuleTest SequentialSimpleRecords.generator 5
+    , rocqModuleTest SimpleDataDefinitions.generator 5
     ]
   ]
