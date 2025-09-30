@@ -102,8 +102,7 @@ rocqCells
   :: (Foldable arity, Foldable tpAnn, IsDoc doc, Monoid (doc ann), IsString (doc ann))
   => [Cell RocqVis arity (RocqName ann) tpAnn (RocqTm ann)]
   -> doc ann
-rocqCells [] = mempty
-rocqCells cells = hsepMap rocqCell cells <> space
+rocqCells cells = listAlt cells mempty (hsepMap rocqCell cells <> space)
 
 --------------------------------------------------------------------------------
 -- Top-level definitions
@@ -185,7 +184,7 @@ instance Name (RocqTm ann) where
 
 instance Pi (RocqTm ann) (RocqMultiCell RocqVis ann) where
   pi [] body = body
-  pi args tp = "forall" <+> rocqCells args <> "," <+> tp
+  pi args tp = "forall" <+> hsepMap rocqCell args <> "," <+> tp
 
 instance Arr (RocqTm ann) (RocqAnonCell RocqVis ann) where
   arr (Cell _ _ arg) tp = fromMaybe underscore arg <+> "->" <+> tp
