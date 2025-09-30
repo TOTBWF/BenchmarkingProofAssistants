@@ -1,19 +1,28 @@
 module Fields_DependentRecordModule where
-open import Agda.Builtin.Nat
-open import Data.Vec.Base
 
-record Cap_X : Set where
-    constructor Const
-    field
-        f1 : Nat
-        f2 : Vec Nat f1
-        f3 : Vec Nat (suc f1)
-        f4 : Vec Nat (suc (suc f1))
-        f5 : Vec Nat (suc (suc (suc f1)))
+postulate
+  P : (n : Nat) → Set
+
+postulate
+  nil : P 0
+
+postulate
+  cons : (n : Nat) (xs : P n) → P suc n
+
+record Cap_X  : Set where
+  constructor Const
+  fields
+    f₁ : Nat
+    f₂ : P (suc f₁)
+    f₃ : P (suc (suc f₁))
+    f₄ : P (suc (suc (suc f₁)))
+    f₅ : P (suc (suc (suc (suc f₁))))
 
 example : Cap_X
-example = Const (1 ∷ [])
-    (1 ∷ 1 ∷ [])
-    (1 ∷ 1 ∷ 1 ∷ [])
-    (1 ∷ 1 ∷ 1 ∷ 1 ∷ [])
-    (1 ∷ 1 ∷ 1 ∷ 1 ∷ 1 ∷ [])
+example =
+  Const
+    (cons 0 nil)
+    (cons 0 (cons 1 nil))
+    (cons 0 (cons 1 (cons 2 nil)))
+    (cons 0 (cons 1 (cons 2 (cons 3 nil))))
+    (cons 0 (cons 1 (cons 2 (cons 3 (cons 4 nil)))))

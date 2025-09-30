@@ -11,6 +11,7 @@ import Panbench.Grammar.Agda
 import Panbench.Generator
 
 import Panbench.Generator.DatatypeParameters qualified as DatatypeParameters
+import Panbench.Generator.LargeDependentRecord qualified as LargeDependentRecord
 import Panbench.Generator.NestedLet qualified as NestedLet
 import Panbench.Generator.NestedLetAdditions qualified as NestedLetAdditions
 import Panbench.Generator.NestedLetFunctions qualified as NestedLetFunctions
@@ -97,6 +98,7 @@ main = defaultMain $
   testGroup "Golden"
   [ testGroup "Agda"
     [ agdaModuleTest DatatypeParameters.generator 5
+    , agdaModuleTest LargeDependentRecord.generator 5
     , agdaModuleTest NestedLet.generator 5
     , agdaModuleTest NestedLetAdditions.generator 5
     , agdaModuleTest NestedLetFunctions.generator 5
