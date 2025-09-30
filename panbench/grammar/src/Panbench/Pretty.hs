@@ -199,7 +199,7 @@ liftDoc2 f x y = coerce (f (coerce x) (coerce y))
 
 -- | Concatenate two documents together with a 'line'.
 (<\?>) :: (IsDoc doc) => doc ann -> doc ann -> doc ann
-(<\?>) x y = x <-> line <-> y
+(<\?>) x y = x <-> group (line <-> y)
 
 (<\>) :: (IsDoc doc) => doc ann -> doc ann -> doc ann
 (<\>) x y = x <-> hardline <-> y
