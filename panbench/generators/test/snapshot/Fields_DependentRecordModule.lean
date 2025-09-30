@@ -1,12 +1,23 @@
-import Init.Data.Vector
 
-structure Cap_X where
-    Const ::
-    f1 : Nat
-    f2 : Vector Nat f1
-    f3 : Vector Nat (Nat.succ f1)
-    f4 : Vector Nat (Nat.succ (Nat.succ f1))
-    f5 : Vector Nat (Nat.succ (Nat.succ (Nat.succ f1)))
+axiom P (n : Nat) : Type
 
-open Cap_X
-example : Cap_X := Const #[1] #[1, 1] #[1, 1, 1] #[1, 1, 1, 1] #[1, 1, 1, 1, 1]
+axiom nil : P 0
+
+axiom cons (n : Nat) (xs : P n) : P Nat.succ n
+
+structure Cap_X : Type
+  Const ::
+  f₁ : Nat
+  f₂ : P (Nat.succ f₁)
+  f₃ : P (Nat.succ (Nat.succ f₁))
+  f₄ : P (Nat.succ (Nat.succ (Nat.succ f₁)))
+  f₅ : P (Nat.succ (Nat.succ (Nat.succ (Nat.succ f₁))))
+  open Cap_X
+
+def example : Cap_X :=
+  Const
+    (cons 0 nil)
+    (cons 0 (cons 1 nil))
+    (cons 0 (cons 1 (cons 2 nil)))
+    (cons 0 (cons 1 (cons 2 (cons 3 nil))))
+    (cons 0 (cons 1 (cons 2 (cons 3 (cons 4 nil)))))
