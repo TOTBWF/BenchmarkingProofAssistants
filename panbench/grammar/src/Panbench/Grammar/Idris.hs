@@ -202,26 +202,24 @@ instance Definition (IdrisLet ann) (IdrisLetDefnLhs ann) (IdrisTm ann) where
   ([] :- SingleCell _ nm tp) .= tm =
     -- Unparameterised binding, use @:=@ with an inline type annotation.
     doc $
-    nest 4 $
     undoc nm <> undoc (maybe mempty (":" <+>) tp) <+> ":=" <\?> undoc tm
   (UnAnnotatedCells tele :- UnAnnotatedCell (SingleCell _ nm _)) .= tm =
     -- Unannotated parameterised binding: omit the signature, and use @=@.
     doc $
-    nest 4 $
     undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc tm
   (tele :- SingleCell _ nm tp) .= tm =
     -- Annotated parameterised binding, generate a signature, and use @=@.
     doc $
     hardlines
-    [ nest 4 $ undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore tp))
-    , nest 4 $ undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc tm
+    [ undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore tp))
+    , undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc tm
     ]
 
 instance Let (IdrisLet ann) (IdrisTm ann) where
   let_ defns e =
     -- [FIXME: Reed M, 28/09/2025] Try to lay things out in a single line if we can.
     doc $
-    "let" <+> undoc (hardlines defns) <\> "in" <+> undoc e
+    "let" <+> undoc (nest 4 $ hardlines defns) <\> "in" <+> undoc e
 
 --------------------------------------------------------------------------------
 -- Terms
