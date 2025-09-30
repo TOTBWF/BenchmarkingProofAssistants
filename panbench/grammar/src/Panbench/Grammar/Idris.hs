@@ -139,7 +139,7 @@ instance RecordDefinition (IdrisDefn ann) (IdrisRecordDefnLhs ann) (IdrisName an
   record_ (params :- (RequiredCell _ nm _)) ctor fields =
     idrisDefn $
     nest 2 $
-    "record" <+> undoc nm <+> hsepMap idrisCell params <+> "where" <\>
+    "record" <+> undoc nm <+> hsepMap idrisCell params <> listAlt params mempty space <> "where" <\>
       "constructor" <+> undoc ctor <\>
       hardlinesFor fields \(RequiredCell _ fieldNm fieldTp) ->
         undoc fieldNm <+> ":" <+> undoc fieldTp
