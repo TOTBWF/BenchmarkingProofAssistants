@@ -36,10 +36,11 @@ module Panbench.Pretty
   -- ** Ternary Combinators
   , enclose
   -- ** List Combinators
+  , hcat
   , hsep
+  , vcat
   , vsep
   , sep
-  , vcat
   , hardlines
   , hsepMap
   , hsepFor
@@ -219,6 +220,12 @@ enclose = liftDoc3 P.enclose
 liftDocList :: (IsDoc doc) => ([P.Doc ann] -> P.Doc ann) -> [doc ann] -> doc ann
 liftDocList f xs = coerce (f (coerce xs))
 
+hcat :: (IsDoc doc) => [doc ann] -> doc ann
+hcat = liftDocList P.hcat
+
+vcat :: (IsDoc doc) => [doc ann] -> doc ann
+vcat = liftDocList P.vcat
+
 hsep :: (IsDoc doc, Foldable t) => t (doc ann) -> doc ann
 hsep = liftDocList P.hsep . toList
 
@@ -227,9 +234,6 @@ vsep = liftDocList P.vsep
 
 sep :: (IsDoc doc) => [doc ann] -> doc ann
 sep = liftDocList P.sep
-
-vcat :: (IsDoc doc) => [doc ann] -> doc ann
-vcat = liftDocList P.vcat
 
 hardlines :: (IsDoc doc) => [doc ann] -> doc ann
 hardlines = hardlinesMap id

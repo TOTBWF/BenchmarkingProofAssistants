@@ -147,8 +147,8 @@ instance RecordDefinition (RocqDefn ann) (RocqRecordDefnLhs ann) (RocqName ann) 
   record_ (params :- (RequiredCell _ nm tp)) ctor fields =
     rocqDefn $
     nest 2 $
-    "Record" <+> undoc nm <+> rocqCells params <> ":" <+> undoc tp <+> ":=" <+>
-      group (undoc ctor <\?> "{" <+> nest 2 (vsep (punctuate ";" (fields <&> \(RequiredCell _ nm tp) -> undoc nm <+> ":" <+> undoc tp))) <+> "}.")
+    "Record" <+> undoc nm <+> rocqCells params <> ":" <+> undoc tp <+> ":=" <+> undoc ctor <>
+    group (line <> "{ " <> hcat (punctuate (line' <> "; ") (fields <&> \(RequiredCell _ nm tp) -> undoc nm <+> ":" <+> undoc tp)) <> line <> "}.")
 
 instance Newline (RocqDefn ann) where
   newlines n = rocqDefn $ hardlines (replicate (fromIntegral n) mempty)
