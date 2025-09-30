@@ -9,7 +9,7 @@ postulate
 postulate
   cons : (n : Nat) (xs : P n) → P suc n
 
-record Cap_X  : Set where
+record Cap_X : Set where
   constructor Const
   fields
     f₁ : Nat
