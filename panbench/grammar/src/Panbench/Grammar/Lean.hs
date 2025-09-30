@@ -175,7 +175,7 @@ instance Name (LeanTm ann) where
   nameN = subscript
 
 instance Pi (LeanTm ann) (LeanMultiCell LeanVis ann) where
-  pi arg body = leanCells arg <\?> "→" <+> body
+  pi arg body = leanCells arg <> "→" <+> body
 
 instance Arr (LeanTm ann) (LeanAnonCell LeanVis ann) where
   arr (Cell _ _ ann) body = fromMaybe underscore ann <+> "->" <+> body
