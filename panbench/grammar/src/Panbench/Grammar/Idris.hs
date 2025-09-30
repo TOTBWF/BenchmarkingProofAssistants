@@ -11,14 +11,19 @@
 -- | Pretty printer for Idris.
 module Panbench.Grammar.Idris
   ( Idris
+  , IdrisMod(..)
+  , IdrisHeader(..)
+  , IdrisDefn(..)
   ) where
 
 import Prelude hiding (pi)
 
 import Data.Coerce
+import Data.Default
 import Data.String (IsString(..))
 import Data.Functor.Identity
 import Data.Maybe
+import Data.Text (Text)
 
 import Numeric.Natural
 
@@ -45,13 +50,20 @@ data IdrisVis
   | Implicit
   deriving (Eq)
 
+instance Default IdrisVis where
+  def = Visible
+
 type IdrisMultiCell info ann = MultiCell info (IdrisName ann) (IdrisTm ann)
 type IdrisSingleCell info ann = SingleCell info (IdrisName ann) (IdrisTm ann)
+type IdrisAnonCell info ann = Cell info Maybe (IdrisName ann) Maybe (IdrisTm ann)
 type IdrisRequiredCell info ann = Cell info Identity (IdrisName ann) Identity (IdrisTm ann)
 
 type IdrisTelescope hdInfo hdAnn docAnn = CellTelescope
    IdrisVis [] (IdrisName docAnn) Maybe (IdrisTm docAnn)
    hdInfo Identity (IdrisName docAnn) hdAnn (IdrisTm docAnn)
+
+instance Implicit (Cell IdrisVis arity name ann tm) where
+  implicit cell = cell { cellInfo = Implicit }
 
 -- | Apply a Idris visibility modifier to a document.
 idrisVis :: (IsDoc doc, IsString (doc ann)) => IdrisVis -> doc ann -> doc ann
@@ -75,19 +87,22 @@ idrisCell (Cell vis names tp) = doc $ idrisVis vis (hsepMap coerce (punctuate ",
 --------------------------------------------------------------------------------
 -- Top-level definitions
 
-newtype IdrisDefn ann = IdrisDefn (Doc ann)
-  deriving newtype (Semigroup, Monoid, IsString)
+newtype IdrisDefn ann = IdrisDefn [Doc ann]
+  deriving newtype (Semigroup, Monoid)
+
+idrisDefn :: Doc ann -> IdrisDefn ann
+idrisDefn = IdrisDefn . pure
 
 type IdrisTmDefnLhs ann = IdrisTelescope () Maybe ann
 
 instance Definition (IdrisDefn ann) (IdrisTmDefnLhs ann) (IdrisTm ann) where
   (UnAnnotatedCells tele :- UnAnnotatedCell (SingleCell _ nm _)) .= tm =
     -- Unclear if Idris supports unannotated top-level bindings?
-    doc $
+    idrisDefn $
     nest 4 (undoc nm <+> ":" <+> "_") <\>
     nest 4 (undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc tm)
   (tele :- SingleCell _ nm tp) .= tm =
-    doc $
+    idrisDefn $
     nest 4 (undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore tp))) <\>
     nest 4 (undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc tm)
 
@@ -108,13 +123,13 @@ type IdrisDataDefnLhs ann = IdrisTelescope () Identity ann
 
 instance DataDefinition (IdrisDefn ann) (IdrisDataDefnLhs ann) (IdrisRequiredCell () ann) where
   -- It appears that Idris 2 does not support parameterised inductives?
-  -- [TODO: Reed M, 28/09/2025] Think about naming conventions for constructors.
   data_ (params :- RequiredCell _ nm tp) ctors =
-    doc $
+    idrisDefn $
     nest 4 $
     "data" <+> undoc nm <+> ":" <+> undoc (pi params tp) <+> "where" <\>
       hardlinesFor ctors \(RequiredCell _ ctorNm ctorTp) ->
-        undoc ctorNm <+> ":" <+> undoc ctorTp
+        -- We need to add the parameters as arguments, as Idris does not support parameterised inductives.
+        undoc ctorNm <+> ":" <+> undoc (pi params ctorTp)
 
 type IdrisRecordDefnLhs ann = IdrisTelescope () Identity ann
 
@@ -122,7 +137,7 @@ instance RecordDefinition (IdrisDefn ann) (IdrisRecordDefnLhs ann) (IdrisName an
   -- Idris does not have universe levels so it does not allow for a sort annotation
   -- on a record definition.
   record_ (params :- (RequiredCell _ nm _)) ctor fields =
-    doc $
+    idrisDefn $
     nest 4 $
     "record" <+> undoc nm <+> hsepMap idrisCell params <+> "where" <\>
       "constructor" <+> undoc ctor <\>
@@ -130,7 +145,7 @@ instance RecordDefinition (IdrisDefn ann) (IdrisRecordDefnLhs ann) (IdrisName an
         undoc fieldNm <+> ":" <+> undoc fieldTp
 
 instance Newline (IdrisDefn ann) where
-  newlines n = hardlines (replicate (fromIntegral n) mempty)
+  newlines n = idrisDefn $ hardlines (replicate (fromIntegral n) mempty)
 
 --------------------------------------------------------------------------------
 -- Let Bindings
@@ -214,11 +229,41 @@ instance Let (IdrisLet ann) (IdrisTm ann) where
 newtype IdrisTm ann = IdrisTm (Doc ann)
   deriving newtype (Semigroup, Monoid, IsString)
 
+instance Name (IdrisTm ann) where
+  nameN x i = x <> pretty i
+
 instance Pi (IdrisTm ann) (IdrisMultiCell IdrisVis ann) where
   pi args body = foldr (\arg tp -> idrisCell arg <+> "->" <+> tp) body args
 
+instance Arr (IdrisTm ann) (IdrisAnonCell IdrisVis ann) where
+  arr (Cell _ _ tp) body = fromMaybe underscore tp <+> "->" <+> body
+
+instance App (IdrisTm ann) where
+  app fn args = nest 2 $ group (vsep (fn:args))
+
 instance Underscore (IdrisTm ann) where
   underscore = "_"
+
+instance Parens (IdrisTm ann) where
+  parens = enclose "(" ")"
+
+--------------------------------------------------------------------------------
+-- Builtins
+
+instance Builtin (IdrisTm ann) "Nat" (IdrisTm ann) where
+  mkBuiltin = "Nat"
+
+instance Literal (IdrisTm ann) "Nat" Natural where
+  mkLit n = pretty n
+
+instance Builtin (IdrisTm ann) "suc" (IdrisTm ann -> IdrisTm ann) where
+  mkBuiltin x = "S" <+> x
+
+instance Builtin (IdrisTm ann) "+" (IdrisTm ann -> IdrisTm ann -> IdrisTm ann) where
+  mkBuiltin x y = x <+> "+" <+> y
+
+instance Builtin (IdrisTm ann) "Type" (IdrisTm ann) where
+  mkBuiltin = "Type"
 
 --------------------------------------------------------------------------------
 -- Modules
@@ -226,18 +271,26 @@ instance Underscore (IdrisTm ann) where
 newtype IdrisMod ann = IdrisMod { getIdrisMod :: Doc ann }
   deriving newtype (Semigroup, Monoid, IsString)
 
-newtype IdrisHeader ann = IdrisHeader (Doc ann)
-  deriving newtype (Semigroup, Monoid, IsString)
+newtype IdrisHeader ann = IdrisHeader [Doc ann]
+  deriving newtype (Semigroup, Monoid)
 
 instance Module (IdrisMod ann) (IdrisHeader ann) (IdrisDefn ann) where
   -- [FIXME: Reed M, 30/09/2025] Adapted from existing code, why do we use @module Main@?
-  module_ _ header body =
+  module_ _ (IdrisHeader header) (IdrisDefn body) =
     doc $ hardlines
     [ "module Main"
-    , undoc header
-    , mempty
-    , undoc body
+    , if null header then mempty else hardline <> hardlines header
+    , hardlines (punctuate hardline body)
     , mempty
     , "main : IO ()"
     , "main = putStrLn \"\""
     ]
+
+--------------------------------------------------------------------------------
+-- Imports
+
+idrisImport :: Text -> IdrisHeader ann
+idrisImport nm = IdrisHeader ["import" <+> pretty nm]
+
+instance Import (IdrisHeader ann) "Data.Nat" where
+  mkImport = mempty
