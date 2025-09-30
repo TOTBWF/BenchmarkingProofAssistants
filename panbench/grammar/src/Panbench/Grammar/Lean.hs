@@ -11,11 +11,16 @@
 -- | Pretty printer for Lean 4.
 module Panbench.Grammar.Lean
   ( Lean
+  , LeanMod(..)
+  , LeanHeader(..)
+  , LeanDefn(..)
   ) where
 
 import Data.Coerce
-import Data.String (IsString(..))
+import Data.Default
 import Data.Functor.Identity
+import Data.Maybe
+import Data.String (IsString(..))
 
 import Numeric.Natural
 
@@ -47,13 +52,20 @@ data LeanVis
   -- ^ Semi-implicit arguments, which are written as @{{x}}@.
   deriving (Eq)
 
+instance Default LeanVis where
+  def = Visible
+
 type LeanMultiCell info ann = MultiCell info (LeanName ann) (LeanTm ann)
 type LeanSingleCell info ann = SingleCell info (LeanName ann) (LeanTm ann)
+type LeanAnonCell info ann = Cell info Maybe (LeanName ann) Maybe (LeanTm ann)
 type LeanRequiredCell info ann = Cell info Identity (LeanName ann) Identity (LeanTm ann)
 
 type LeanTelescope hdInfo hdAnn docAnn = CellTelescope
    LeanVis [] (LeanName docAnn) Maybe (LeanTm docAnn)
    hdInfo Identity (LeanName docAnn) hdAnn (LeanTm docAnn)
+
+instance Implicit (Cell LeanVis arity name ann tm) where
+  implicit cell = cell { cellInfo = Implicit }
 
 -- | Apply a lean 4 visibility modifier to a document.
 leanVis :: (IsDoc doc, IsString (doc ann)) => LeanVis -> doc ann -> doc ann
@@ -75,22 +87,25 @@ leanCell (Cell vis names tp)
   | otherwise = leanVis vis (hsepMap coerce names <+> ":" <+> hsepMap coerce tp)
 
 leanCells
-  :: (Foldable arity, Foldable tpAnn, IsDoc doc, IsString (doc ann))
+  :: (Foldable arity, Foldable tpAnn, IsDoc doc, Monoid (doc ann), IsString (doc ann))
   => [Cell LeanVis arity (LeanName ann) tpAnn (LeanTm ann)]
   -> doc ann
-leanCells = hsepMap leanCell
+leanCells cells = hsepMap leanCell cells <> listAlt cells mempty space
 
 --------------------------------------------------------------------------------
 -- Top-level definitions
 
-newtype LeanDefn ann = LeanDefn (Doc ann)
-  deriving newtype (Semigroup, Monoid, IsString)
+newtype LeanDefn ann = LeanDefn [Doc ann]
+  deriving newtype (Semigroup, Monoid)
+
+leanDef :: Doc ann -> LeanDefn ann
+leanDef = LeanDefn . pure
 
 type LeanTmDefnLhs ann = LeanTelescope () Maybe ann
 
 instance Definition (LeanDefn ann) (LeanTmDefnLhs ann) (LeanTm ann) where
   (tele :- SingleCell _ nm tp) .= tm =
-    doc $
+    leanDef $
     nest 4 $
     "def" <+> undoc nm <+> leanCells tele <> undoc (maybe mempty (":" <+>) tp) <+> ":=" <\?>
       undoc tm
@@ -99,7 +114,7 @@ type LeanPostulateDefnLhs ann = LeanTelescope () Identity ann
 
 instance Postulate (LeanDefn ann) (LeanPostulateDefnLhs ann) where
   postulate (tele :- RequiredCell _ nm tp) =
-    doc $
+    leanDef $
     nest 4 $
     "axiom" <+> undoc nm <+> leanCells tele <+> ":" <+> undoc tp
 
@@ -107,9 +122,9 @@ type LeanDataDefnLhs ann = LeanTelescope () Identity ann
 
 instance DataDefinition (LeanDefn ann) (LeanDataDefnLhs ann) (LeanRequiredCell () ann) where
   data_ (params :- RequiredCell _ nm tp) ctors =
-    doc $
+    leanDef $
     nest 2 $
-    "inductive" <+> undoc nm <+> leanCells params <+> ":" <+> undoc tp <+> "where" <\>
+    "inductive" <+> undoc nm <+> leanCells params <> ":" <+> undoc tp <+> "where" <\>
       hardlinesFor ctors \(RequiredCell _ ctorNm ctorTp) ->
         "|" <+> undoc ctorNm <+> ":" <+> undoc ctorTp
 
@@ -117,15 +132,18 @@ type LeanRecordDefnLhs ann = LeanTelescope () Identity ann
 
 instance RecordDefinition (LeanDefn ann) (LeanRecordDefnLhs ann) (LeanName ann) (LeanRequiredCell () ann) where
   record_ (params :- RequiredCell _ nm tp) ctor fields =
-    doc $
+    leanDef $
     nest 2 $
-    "structure" <+> undoc nm <+> leanCells params <+> ":" <+> undoc tp <\>
-      undoc ctor <+> "::" <\>
-      hardlinesFor fields \(RequiredCell _ fieldNm fieldTp) ->
-       undoc fieldNm <+> ":" <+> undoc fieldTp
+    hardlines
+    [ "structure" <+> undoc nm <+> leanCells params <> ":" <+> undoc tp
+    , undoc ctor <+> "::"
+    , hardlinesFor fields \(RequiredCell _ fieldNm fieldTp) ->
+        undoc fieldNm <+> ":" <+> undoc fieldTp
+    , "open" <+> undoc nm
+    ]
 
 instance Newline (LeanDefn ann) where
-  newlines n = hardlines (replicate (fromIntegral n) mempty)
+  newlines n = leanDef $ hardlines (replicate (fromIntegral n) mempty)
 
 --------------------------------------------------------------------------------
 -- Let Bindings
@@ -159,8 +177,17 @@ instance Name (LeanTm ann) where
 instance Pi (LeanTm ann) (LeanMultiCell LeanVis ann) where
   pi arg body = leanCells arg <\?> "→" <+> body
 
+instance Arr (LeanTm ann) (LeanAnonCell LeanVis ann) where
+  arr (Cell vis _ ann) body = leanVis vis (fromMaybe underscore ann) <+> "->" <+> body
+
+instance App (LeanTm ann) where
+  app fn args = nest 2 $ group (vsep (fn:args))
+
 instance Underscore (LeanTm ann) where
   underscore = "_"
+
+instance Parens (LeanTm ann) where
+  parens = enclose "(" ")"
 
 instance Literal (LeanTm ann) "Nat" Natural where
   mkLit = pretty
@@ -168,23 +195,29 @@ instance Literal (LeanTm ann) "Nat" Natural where
 instance Builtin (LeanTm ann) "Nat" (LeanTm ann) where
   mkBuiltin = "Nat"
 
+instance Builtin (LeanTm ann) "Type" (LeanTm ann) where
+  mkBuiltin = "Type"
+
+instance Builtin (LeanTm ann) "suc" (LeanTm ann -> LeanTm ann) where
+  mkBuiltin x = "Nat.succ" <+> x
+
 instance Builtin (LeanTm ann) "+" (LeanTm ann -> LeanTm ann -> LeanTm ann) where
   mkBuiltin x y = x <+> "+" <+> y
 
 --------------------------------------------------------------------------------
 -- Modules
 
-newtype LeanHeader ann = LeanHeader (Doc ann)
-  deriving newtype (Semigroup, Monoid, IsString)
+newtype LeanHeader ann = LeanHeader [Doc ann]
+  deriving newtype (Semigroup, Monoid)
 
 newtype LeanMod ann = LeanMod { getLeanMod :: Doc ann }
   deriving newtype (Semigroup, Monoid, IsString)
 
 instance Module (LeanMod ann) (LeanHeader ann) (LeanDefn ann) where
-  module_ _ header body =
+  module_ _ (LeanHeader header) (LeanDefn body) =
     doc $ hardlines
-    [ undoc header
-    , undoc body
+    [ hardlines header
+    , hardlines (punctuate hardline body)
     ]
 
 --------------------------------------------------------------------------------
