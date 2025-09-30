@@ -157,7 +157,7 @@ instance Definition (LeanLet ann) (LeanLetDefnLhs ann) (LeanTm ann) where
   (tele :- SingleCell _ nm tp) .= tm =
     doc $
     nest 4 $
-    undoc nm <+> leanCells tele <> undoc (maybe mempty (":" <+>) tp) <+> ":=" <\?> undoc tm
+    undoc nm <+> leanCells tele <> undoc (maybe mempty (\tp -> ":" <+> tp <> space) tp) <> ":=" <\?> undoc tm
 
 instance Let (LeanLet ann) (LeanTm ann) where
   let_ defns tm =
