@@ -1,17 +1,16 @@
 module DataSimpleDeclarations where
-open import Agda.Builtin.Nat
 
-data X5 : Set where
- Y5 : X5
+data X₁ : Set where
+  Y₁ : X₁
 
-data X4 : Set where
- Y4 : X4
+data X₂ : Set where
+  Y₂ : X₂
 
-data X3 : Set where
- Y3 : X3
+data X₃ : Set where
+  Y₃ : X₃
 
-data X2 : Set where
- Y2 : X2
+data X₄ : Set where
+  Y₄ : X₄
 
-data X1 : Set where
- Y1 : X1
+data X₅ : Set where
+  Y₅ : X₅
