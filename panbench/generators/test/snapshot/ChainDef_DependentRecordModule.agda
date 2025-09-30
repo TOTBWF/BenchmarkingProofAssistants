@@ -1,30 +1,29 @@
 module ChainDef_DependentRecordModule where
-open import Agda.Builtin.Nat
 
-record Dummy1 : Set where
-    constructor Const1
-    field
-        f1 : Nat
+record Dummy₁ : Set where
+  constructor Const₁
+  fields
+    f₁ : Nat
 
-record Dummy2 : Set where
-    constructor Const2
-    field
-        f2 : Dummy1
+record Dummy₂ : Set where
+  constructor Const₂
+  fields
+    f₂ : Dummy₁
 
-record Dummy3 : Set where
-    constructor Const3
-    field
-        f3 : Dummy2
+record Dummy₃ : Set where
+  constructor Const₃
+  fields
+    f₃ : Dummy₂
 
-record Dummy4 : Set where
-    constructor Const4
-    field
-        f4 : Dummy3
+record Dummy₄ : Set where
+  constructor Const₄
+  fields
+    f₄ : Dummy₃
 
-record Dummy5 : Set where
-    constructor Const5
-    field
-        f5 : Dummy4
+record Dummy₅ : Set where
+  constructor Const₅
+  fields
+    f₅ : Dummy₄
 
-example : Dummy5
-example = Const5 (Const4 (Const3 (Const2 (Const1 10))))
+example : Dummy₅
+example = (Const₅ (Const₄ (Const₃ (Const₂ (Const₁ 10)))))

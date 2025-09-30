@@ -10,10 +10,11 @@ generator =
   GenModule "ChainDef_DependentRecordModule"
   [
   ] \size ->
-  [ recordN_ ([] |- nameN "Dummy" i .: builtin "Type") (nameN "Const" i) i \j ->
-      nameN "f" j .: "Nat"
+  [ record_ ([] |- nameN "Dummy" i .: builtin "Type") (nameN "Const" i)
+    [ if i == 1 then nameN "f" i .: builtin "Nat" else nameN "f" i .: nameN "Dummy" (i - 1)
+    ]
   | i <- [1..size]
   ] ++
-  [ [] |- "exaample" .: nameN "Dummy" size .=
-      foldr (\i tm -> app (nameN "Const" i) [tm]) (nat 10) [1..size]
+  [ [] |- "example" .: nameN "Dummy" size .=
+      foldl (\tm i -> parens $ app (nameN "Const" i) [tm]) (nat 10) [1..size]
   ]
