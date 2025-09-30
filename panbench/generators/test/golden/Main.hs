@@ -13,6 +13,7 @@ import Panbench.Generator
 import Panbench.Generator.DatatypeParameters qualified as DatatypeParameters
 import Panbench.Generator.LargeDependentRecord qualified as LargeDependentRecord
 import Panbench.Generator.LargeIndexedDatatype qualified as LargeIndexedDatatype
+import Panbench.Generator.LargeIndexedParameterisedDatatype qualified as LargeIndexedParameterisedDatatype
 import Panbench.Generator.NestedLet qualified as NestedLet
 import Panbench.Generator.NestedLetAdditions qualified as NestedLetAdditions
 import Panbench.Generator.NestedLetFunctions qualified as NestedLetFunctions
@@ -101,6 +102,7 @@ main = defaultMain $
     [ agdaModuleTest DatatypeParameters.generator 5
     , agdaModuleTest LargeDependentRecord.generator 5
     , agdaModuleTest LargeIndexedDatatype.generator 5
+    , agdaModuleTest LargeIndexedParameterisedDatatype.generator 5
     , agdaModuleTest NestedLet.generator 5
     , agdaModuleTest NestedLetAdditions.generator 5
     , agdaModuleTest NestedLetFunctions.generator 5

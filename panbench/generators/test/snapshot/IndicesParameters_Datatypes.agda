@@ -1,5 +1,6 @@
 module IndicesParameters_Datatypes where
+
 open import Agda.Builtin.Nat
 
-data D (p1 : Set) (p2 : Set) (p3 : Set) (p4 : Set) (p5 : Set) : Nat -> Nat -> Nat -> Nat -> Nat -> Set where
- C : {X1 X2 X3 X4 X5 : Nat} -> D p1 p2 p3 p4 p5 X1 X2 X3 X4 X5
+data D (p₁ : Set) (p₂ : Set) (p₃ : Set) (p₄ : Set) (p₅ : Set) : Nat → Nat → Nat → Nat → Nat → Set where
+  C : (x₁ x₂ x₃ x₄ x₅ : Nat) → D p₁ p₂ p₃ p₄ p₅ x₁ x₂ x₃ x₄ x₅
