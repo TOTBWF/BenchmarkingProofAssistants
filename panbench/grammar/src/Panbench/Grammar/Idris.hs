@@ -100,11 +100,11 @@ instance Definition (IdrisDefn ann) (IdrisTmDefnLhs ann) (IdrisTm ann) where
     -- Unclear if Idris supports unannotated top-level bindings?
     idrisDefn $
     nest 2 (undoc nm <+> ":" <+> "_") <\>
-    nest 2 (undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc tm)
+    nest 2 (undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <> listAlt tele mempty space <> "=" <\?> undoc tm)
   (tele :- SingleCell _ nm tp) .= tm =
     idrisDefn $
     nest 2 (undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore tp))) <\>
-    nest 2 (undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc tm)
+    nest 2 (undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <> listAlt tele mempty space <> "=" <\?> undoc tm)
 
 type IdrisPostulateDefnLhs ann = IdrisTelescope () Identity ann
 
