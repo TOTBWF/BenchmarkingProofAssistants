@@ -168,11 +168,11 @@ instance Definition (RocqLet ann) (RocqLetDefnLhs ann) (RocqTm ann) where
   (tele :- (SingleCell _ nm tp)) .= tm =
     doc $
     nest 4 $
-    undoc nm <+> rocqCells tele <> undoc (maybe mempty (":" <+>) tp) <+> ":=" <\?> undoc tm
+    undoc nm <+> rocqCells tele <> undoc (maybe mempty (\tp -> ":" <+> tp <> space) tp) <> ":=" <\?> undoc tm
 
 instance Let (RocqLet ann) (RocqTm ann) where
   let_ defns tm =
-    doc $ foldr (\defn e -> "let" <+> undoc defn <+> "in" <\?> e) (undoc tm) defns
+    doc $ group $ foldr (\defn e -> "let" <+> undoc defn <> line <> "in" <+> e) (undoc tm) defns
 
 --------------------------------------------------------------------------------
 -- Terms
