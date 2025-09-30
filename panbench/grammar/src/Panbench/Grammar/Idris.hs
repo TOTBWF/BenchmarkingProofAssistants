@@ -126,10 +126,10 @@ instance DataDefinition (IdrisDefn ann) (IdrisDataDefnLhs ann) (IdrisRequiredCel
   data_ (params :- RequiredCell _ nm tp) ctors =
     idrisDefn $
     nest 2 $
-    "data" <+> undoc nm <+> ":" <+> undoc (pi params tp) <+> "where" <\>
+    "data" <+> undoc nm <+> ":" <+> group (undoc (pi params tp) <> line <> "where") <\>
       hardlinesFor ctors \(RequiredCell _ ctorNm ctorTp) ->
         -- We need to add the parameters as arguments, as Idris does not support parameterised inductives.
-        undoc ctorNm <+> ":" <+> undoc (pi params ctorTp)
+        undoc ctorNm <+> ":" <+> nest 2 (undoc (pi params ctorTp))
 
 type IdrisRecordDefnLhs ann = IdrisTelescope () Identity ann
 
@@ -233,7 +233,7 @@ instance Name (IdrisTm ann) where
   nameN x i = x <> pretty i
 
 instance Pi (IdrisTm ann) (IdrisMultiCell IdrisVis ann) where
-  pi args body = foldr (\arg tp -> idrisCell arg <+> "->" <+> tp) body args
+  pi args body = group $ align (foldr (\arg tp -> idrisCell arg <+> "->" <> line <> tp) body args)
 
 instance Arr (IdrisTm ann) (IdrisAnonCell IdrisVis ann) where
   arr (Cell _ _ tp) body = fromMaybe underscore tp <+> "->" <+> body
