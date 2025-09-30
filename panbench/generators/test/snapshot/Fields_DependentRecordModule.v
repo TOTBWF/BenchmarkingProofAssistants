@@ -1,11 +1,11 @@
 
 Module Fields_DependentRecordModule.
 
-Axiom P : forall (n : nat) , Type.
+Axiom P : forall (n : nat), Type.
 
 Axiom nil : P 0.
 
-Axiom cons : forall (n : nat) (xs : P n) , P S n.
+Axiom cons : forall (n : nat) (xs : P n), P S n.
 
 Record Cap_X : Type := Const
   { f1 : nat
