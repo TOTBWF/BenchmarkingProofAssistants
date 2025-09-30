@@ -7,8 +7,9 @@ import Data.Text as T
 import Data.ByteString.Lazy as LBS
 
 import Panbench.Grammar.Agda
-import Panbench.Grammar.Rocq
+import Panbench.Grammar.Idris
 import Panbench.Grammar.Lean
+import Panbench.Grammar.Rocq
 
 import Panbench.Generator
 
@@ -113,6 +114,13 @@ leanModuleTest
 leanModuleTest gen size =
   printTestForLang "lean" (genModuleVia getLeanMod size) ".lean" (T.unpack (genName gen)) gen
 
+idrisModuleTest
+  :: GenModule size (IdrisHeader ()) (IdrisDefn ())
+  -> size
+  -> TestTree
+idrisModuleTest gen size =
+  printTestForLang "idris" (genModuleVia getIdrisMod size) ".idr" (T.unpack (genName gen)) gen
+
 -- * Tests
 --
 -- These tests are all taken from the original @Tests.hs@ file,
@@ -140,22 +148,22 @@ main = defaultMain $
     , agdaModuleTest SequentialSimpleRecords.generator 5
     , agdaModuleTest SimpleDataDefinitions.generator 5
     ]
-  , testGroup "Rocq"
-    [ rocqModuleTest DatatypeParameters.generator 5
-    , rocqModuleTest LargeDependentRecord.generator 5
-    , rocqModuleTest LargeIndexedDatatype.generator 5
-    , rocqModuleTest LargeIndexedParameterisedDatatype.generator 5
-    , rocqModuleTest LargeSimpleDatatype.generator 5
-    , rocqModuleTest LargeSimpleRecord.generator 5
-    , rocqModuleTest NestedLet.generator 5
-    , rocqModuleTest NestedLetAdditions.generator 5
-    , rocqModuleTest NestedLetFunctions.generator 5
-    , rocqModuleTest Newlines.generator 5
-    , rocqModuleTest RecordParameters.generator 5
-    , rocqModuleTest SequentialDefinitions.generator 5
-    , rocqModuleTest SequentialDependentRecords.generator 5
-    , rocqModuleTest SequentialSimpleRecords.generator 5
-    , rocqModuleTest SimpleDataDefinitions.generator 5
+  , testGroup "Idris"
+    [ idrisModuleTest DatatypeParameters.generator 5
+    , idrisModuleTest LargeDependentRecord.generator 5
+    , idrisModuleTest LargeIndexedDatatype.generator 5
+    , idrisModuleTest LargeIndexedParameterisedDatatype.generator 5
+    , idrisModuleTest LargeSimpleDatatype.generator 5
+    , idrisModuleTest LargeSimpleRecord.generator 5
+    , idrisModuleTest NestedLet.generator 5
+    , idrisModuleTest NestedLetAdditions.generator 5
+    , idrisModuleTest NestedLetFunctions.generator 5
+    , idrisModuleTest Newlines.generator 5
+    , idrisModuleTest RecordParameters.generator 5
+    , idrisModuleTest SequentialDefinitions.generator 5
+    , idrisModuleTest SequentialDependentRecords.generator 5
+    , idrisModuleTest SequentialSimpleRecords.generator 5
+    , idrisModuleTest SimpleDataDefinitions.generator 5
     ]
   , testGroup "Lean"
     [ leanModuleTest DatatypeParameters.generator 5
@@ -173,5 +181,22 @@ main = defaultMain $
     , leanModuleTest SequentialDependentRecords.generator 5
     , leanModuleTest SequentialSimpleRecords.generator 5
     , leanModuleTest SimpleDataDefinitions.generator 5
+    ]
+  , testGroup "Rocq"
+    [ rocqModuleTest DatatypeParameters.generator 5
+    , rocqModuleTest LargeDependentRecord.generator 5
+    , rocqModuleTest LargeIndexedDatatype.generator 5
+    , rocqModuleTest LargeIndexedParameterisedDatatype.generator 5
+    , rocqModuleTest LargeSimpleDatatype.generator 5
+    , rocqModuleTest LargeSimpleRecord.generator 5
+    , rocqModuleTest NestedLet.generator 5
+    , rocqModuleTest NestedLetAdditions.generator 5
+    , rocqModuleTest NestedLetFunctions.generator 5
+    , rocqModuleTest Newlines.generator 5
+    , rocqModuleTest RecordParameters.generator 5
+    , rocqModuleTest SequentialDefinitions.generator 5
+    , rocqModuleTest SequentialDependentRecords.generator 5
+    , rocqModuleTest SequentialSimpleRecords.generator 5
+    , rocqModuleTest SimpleDataDefinitions.generator 5
     ]
   ]
