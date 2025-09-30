@@ -178,7 +178,7 @@ instance Pi (LeanTm ann) (LeanMultiCell LeanVis ann) where
   pi arg body = leanCells arg <\?> "→" <+> body
 
 instance Arr (LeanTm ann) (LeanAnonCell LeanVis ann) where
-  arr (Cell vis _ ann) body = leanVis vis (fromMaybe underscore ann) <+> "->" <+> body
+  arr (Cell _ _ ann) body = fromMaybe underscore ann <+> "->" <+> body
 
 instance App (LeanTm ann) where
   app fn args = nest 2 $ group (vsep (fn:args))
