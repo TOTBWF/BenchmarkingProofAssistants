@@ -135,7 +135,7 @@ type RocqDataDefnLhs ann = RocqTelescope () Identity ann
 instance DataDefinition (RocqDefn ann) (RocqDataDefnLhs ann) (RocqRequiredCell () ann) where
   data_ (params :- RequiredCell _ nm tp) ctors =
     rocqDefn $
-    "Inductive" <+> undoc nm <+> rocqCells params <+> ":" <+> undoc tp <\>
+    "Inductive" <+> undoc nm <+> rocqCells params <+> ":" <+> undoc tp <+> ":=" <\>
     hardlinesFor ctors (\(RequiredCell _ nm tp) -> nest 4 ("|" <+> undoc nm <+> ":" <\?> undoc tp)) <> "."
 
 -- [TODO: Reed M, 29/09/2025] Technically rocq can omit type signatures on records.
