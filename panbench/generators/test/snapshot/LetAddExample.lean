@@ -1,7 +1,8 @@
 
-def n : Nat := let x1 := 1
-let x2 := x1 + x1
-let x3 := x2 + x2
-let x4 := x3 + x3
-let x5 := x4 + x4
-x5
+def n : Nat :=
+  let x₁ := 1
+  let x₂ := x₁ + x₁
+  let x₃ := x₂ + x₂
+  let x₄ := x₃ + x₃
+  let x₅ := x₄ + x₄
+  x₅
