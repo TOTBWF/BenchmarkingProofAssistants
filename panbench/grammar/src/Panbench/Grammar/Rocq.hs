@@ -184,7 +184,7 @@ instance Name (RocqTm ann) where
 
 instance Pi (RocqTm ann) (RocqMultiCell RocqVis ann) where
   pi [] body = body
-  pi args tp = "forall" <+> hsepMap rocqCell args <> "," <+> tp
+  pi args tp = "forall" <+> hsepMap rocqCell args <> "," <\?> tp
 
 instance Arr (RocqTm ann) (RocqAnonCell RocqVis ann) where
   arr (Cell _ _ arg) tp = fromMaybe underscore arg <+> "->" <+> tp
