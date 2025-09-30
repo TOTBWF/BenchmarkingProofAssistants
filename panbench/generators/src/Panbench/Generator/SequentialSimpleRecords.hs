@@ -8,12 +8,13 @@ import Panbench
 generator :: _ => GenModule Natural hdr defns
 generator =
   GenModule "ChainDefFields_NonDependentRecordModule"
-  [
+  [ import_ "Data.Nat"
   ] \size ->
-  [ recordN_ ([] |- nameN "Dummy" i .: builtin "Type") (nameN "Const" i) i \j ->
-      nameN "f" j .: builtin "Nat"
+  [ record_ ([] |- nameN "Dummy" i .: builtin "Type") (nameN "Const" i)
+    [ nameN "f" i .: builtin "Nat"
+    ]
   | i <- [1..size]
   ] ++
   [ [] |- "example" .: nameN "Dummy" size .=
-      foldr (\i tm -> app (nameN "Const" i) [tm]) (nat 10) [1..size]
+    app (nameN "Const" size) [nat 1]
   ]

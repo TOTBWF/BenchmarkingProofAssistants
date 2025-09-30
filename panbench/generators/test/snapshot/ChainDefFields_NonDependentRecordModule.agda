@@ -1,30 +1,31 @@
 module ChainDefFields_NonDependentRecordModule where
+
 open import Agda.Builtin.Nat
 
-record Dummy1 : Set where
-    constructor Const1
-    field
-        f1 : Nat
+record Dummy₁ : Set where
+  constructor Const₁
+  fields
+    f₁ : Nat
 
-record Dummy2 : Set where
-    constructor Const2
-    field
-        f2 : Nat
+record Dummy₂ : Set where
+  constructor Const₂
+  fields
+    f₂ : Nat
 
-record Dummy3 : Set where
-    constructor Const3
-    field
-        f3 : Nat
+record Dummy₃ : Set where
+  constructor Const₃
+  fields
+    f₃ : Nat
 
-record Dummy4 : Set where
-    constructor Const4
-    field
-        f4 : Nat
+record Dummy₄ : Set where
+  constructor Const₄
+  fields
+    f₄ : Nat
 
-record Dummy5 : Set where
-    constructor Const5
-    field
-        f5 : Nat
+record Dummy₅ : Set where
+  constructor Const₅
+  fields
+    f₅ : Nat
 
-example : Dummy5
-example = Const5 1
+example : Dummy₅
+example = Const₅ 1
