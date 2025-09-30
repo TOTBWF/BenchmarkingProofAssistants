@@ -116,7 +116,7 @@ instance Postulate (LeanDefn ann) (LeanPostulateDefnLhs ann) where
   postulate (tele :- RequiredCell _ nm tp) =
     leanDef $
     nest 4 $
-    "axiom" <+> undoc nm <+> leanCells tele <+> ":" <+> undoc tp
+    "axiom" <+> undoc nm <+> leanCells tele <> ":" <+> undoc tp
 
 type LeanDataDefnLhs ann = LeanTelescope () Identity ann
 
