@@ -18,5 +18,5 @@ x5 = 5
 result : Nat
 result = x1 + x5
 
-main : IO()
+main : IO ()
 main = putStrLn ""
