@@ -1,6 +1,7 @@
+
 inductive D : Type where
-| C1 : D
-| C2 : D
-| C3 : D
-| C4 : D
-| C5 : D
+  | C₁ : D
+  | C₂ : D
+  | C₃ : D
+  | C₄ : D
+  | C₅ : D

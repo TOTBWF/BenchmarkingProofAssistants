@@ -1,7 +1,7 @@
 
-structure X (f1 : Nat) (f2 : Nat) (f3 : Nat) (f4 : Nat) (f5 : Nat) where
-    Const ::
-    sums : Nat
+structure X (f₁ : Nat) (f₂ : Nat) (f₃ : Nat) (f₄ : Nat) (f₅ : Nat) : Type
+  Const ::
+  sums : Nat
+  open X
 
-open X
-example : X 1 2 3 4 5 := Const (1 + 2 + 3 + 4 + 5)
+def example : X 1 2 3 4 5 := Const (1 + 2 + 3 + 4 + 5)

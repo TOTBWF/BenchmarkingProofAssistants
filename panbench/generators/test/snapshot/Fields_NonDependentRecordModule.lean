@@ -1,11 +1,11 @@
 
-structure Cap_X where
-    Const ::
-    f1 : Nat
-    f2 : Nat
-    f3 : Nat
-    f4 : Nat
-    f5 : Nat
+structure Cap_X : Type
+  Const ::
+  f₁ : Nat
+  f₂ : Nat
+  f₃ : Nat
+  f₄ : Nat
+  f₅ : Nat
+  open Cap_X
 
-open Cap_X
-example : Cap_X := Const 1 1 1 1 1
+def example : Cap_X := Const 1 1 1 1 1

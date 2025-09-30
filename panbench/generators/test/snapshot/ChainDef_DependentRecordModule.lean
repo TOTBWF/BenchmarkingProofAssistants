@@ -1,23 +1,27 @@
 
-structure Dummy1 where
-    Const1 ::
-    f1 : Nat
+structure Dummy₁ : Type
+  Const₁ ::
+  f₁ : Nat
+  open Dummy₁
 
-structure Dummy2 where
-    Const2 ::
-    f2 : Dummy1
+structure Dummy₂ : Type
+  Const₂ ::
+  f₂ : Dummy₁
+  open Dummy₂
 
-structure Dummy3 where
-    Const3 ::
-    f3 : Dummy2
+structure Dummy₃ : Type
+  Const₃ ::
+  f₃ : Dummy₂
+  open Dummy₃
 
-structure Dummy4 where
-    Const4 ::
-    f4 : Dummy3
+structure Dummy₄ : Type
+  Const₄ ::
+  f₄ : Dummy₃
+  open Dummy₄
 
-structure Dummy5 where
-    Const5 ::
-    f5 : Dummy4
+structure Dummy₅ : Type
+  Const₅ ::
+  f₅ : Dummy₄
+  open Dummy₅
 
-open Dummy1 Dummy2 Dummy3 Dummy4 Dummy5
-example : Dummy5 := Const5 (Const4 (Const3 (Const2 (Const1 10))))
+def example : Dummy₅ := (Const₅ (Const₄ (Const₃ (Const₂ (Const₁ 10)))))
