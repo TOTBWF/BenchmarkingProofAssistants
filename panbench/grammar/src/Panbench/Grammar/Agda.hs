@@ -223,7 +223,7 @@ instance Builtin (AgdaTm ann) "Type" (AgdaTm ann) where
 --------------------------------------------------------------------------------
 -- Modules
 
-newtype AgdaMod ann = AgdaMod { getAgda :: Doc ann }
+newtype AgdaMod ann = AgdaMod { getAgdaMod :: Doc ann }
   deriving newtype (Semigroup, Monoid, IsString)
 
 newtype AgdaHeader ann = AgdaHeader [Doc ann]
