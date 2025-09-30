@@ -19,6 +19,12 @@ import Panbench.Generator.LargeSimpleRecord qualified as LargeSimpleRecord
 import Panbench.Generator.NestedLet qualified as NestedLet
 import Panbench.Generator.NestedLetAdditions qualified as NestedLetAdditions
 import Panbench.Generator.NestedLetFunctions qualified as NestedLetFunctions
+import Panbench.Generator.Newlines qualified as Newlines
+import Panbench.Generator.RecordParameters qualified as RecordParameters
+import Panbench.Generator.SequentialDefinitions qualified as SequentialDefinitions
+import Panbench.Generator.SequentialDependentRecords qualified as SequentialDependentRecords
+import Panbench.Generator.SequentialSimpleRecords qualified as SequentialSimpleRecords
+import Panbench.Generator.SimpleDataDefinitions qualified as SimpleDataDefinitions
 
 import System.Directory
 import System.FilePath
@@ -110,5 +116,11 @@ main = defaultMain $
     , agdaModuleTest NestedLet.generator 5
     , agdaModuleTest NestedLetAdditions.generator 5
     , agdaModuleTest NestedLetFunctions.generator 5
+    , agdaModuleTest Newlines.generator 5
+    , agdaModuleTest RecordParameters.generator 5
+    , agdaModuleTest SequentialDefinitions.generator 5
+    , agdaModuleTest SequentialDependentRecords.generator 5
+    , agdaModuleTest SequentialSimpleRecords.generator 5
+    , agdaModuleTest SimpleDataDefinitions.generator 5
     ]
   ]
