@@ -44,7 +44,9 @@ module Panbench.Pretty
   , hsepMap
   , hsepFor
   , vcatMap
+  , vcatFor
   , hardlinesMap
+  , hardlinesFor
   , punctuate
   , listAlt
   -- * Re-exports
@@ -248,6 +250,9 @@ concatMapWith c f xs =
 vcatMap :: (IsDoc doc, Foldable t) => (a -> doc ann) -> t a -> doc ann
 vcatMap = concatMapWith (\x y -> x <-> line' <-> y)
 
+vcatFor :: (IsDoc doc, Foldable t) => t a -> (a -> doc ann) -> doc ann
+vcatFor = flip vcatMap
+
 -- FIXME: All of these should use some variant of foldr1 or something??
 hsepMap :: (IsDoc doc, Foldable t) => (a -> doc ann) -> t a -> doc ann
 hsepMap = concatMapWith (<+>)
@@ -258,8 +263,11 @@ hsepFor = flip hsepMap
 hardlinesMap :: (IsDoc doc, Foldable t) => (a -> doc ann) -> t a -> doc ann
 hardlinesMap = concatMapWith (<\>)
 
-punctuate :: forall doc ann. (IsDoc doc) => doc ann -> [doc ann] -> [doc ann]
-punctuate p xs = docs (P.punctuate (undoc p) (undocs xs))
+hardlinesFor :: (IsDoc doc, Foldable t) => t a -> (a -> doc ann) -> doc ann
+hardlinesFor = flip hardlinesMap
+
+punctuate :: forall t doc ann. (IsDoc doc, Foldable t) => doc ann -> t (doc ann) -> [doc ann]
+punctuate p xs = docs (P.punctuate (undoc p) (undocs (toList xs)))
 
 -- | Alternative layouts for when a list is empty.
 listAlt

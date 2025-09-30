@@ -125,7 +125,7 @@ class SemiImplicit cell where
 -- $definitions
 
 -- | A term definition.
-class Definition defn lhs tm | defn -> lhs, defn -> tm, tm lhs -> defn where
+class Definition defn lhs tm | defn -> lhs, defn -> tm where
   (.=) :: lhs -> tm -> defn
 
 infixr 0 .=

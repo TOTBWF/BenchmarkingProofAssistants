@@ -95,10 +95,13 @@ instance Definition (AgdaDefn ann) (AgdaTmDefnLhs ann) (AgdaTm ann) where
     nest 4 (undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore ann))) <\>
     nest 4 (undoc nm <+> agdaCells tele <+> "=" <\?> undoc e)
 
-instance Postulate (AgdaDefn ann) (AgdaTmDefnLhs ann) where
-  postulate (AgdaTmDefnLhs tele (SingleCell _ nm ann)) =
+data AgdaPostulateDefnLhs ann
+  = AgdaPostulateDefnLhs [AgdaMultiCell AgdaVis ann] (AgdaRequiredCell () ann)
+
+instance Postulate (AgdaDefn ann) (AgdaPostulateDefnLhs ann) where
+  postulate (AgdaPostulateDefnLhs tele (SingleCell _ nm (Identity ann))) =
     doc $
-    nest 4 (undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore ann)))
+    nest 4 (undoc nm <+> ":" <+> undoc (pi tele ann))
 
 data AgdaDataDefnLhs ann
   = AgdaDataDefnLhs [AgdaMultiCell AgdaVis ann] (AgdaRequiredCell () ann)
@@ -108,7 +111,7 @@ instance DataDefinition (AgdaDefn ann) (AgdaDataDefnLhs ann) (AgdaRequiredCell (
     doc $
     nest 2 $
       "data" <+> undoc nm <+> agdaCells params <+> ":" <+> undoc tp <+> "where" <\>
-      hsepFor ctors \(SingleCell _ nm (Identity tp)) ->
+      hardlinesFor ctors \(SingleCell _ nm (Identity tp)) ->
         nest 2 $ undoc nm <+> ":" <\?> undoc tp
 
 data AgdaRecordDefnLhs ann
@@ -122,7 +125,7 @@ instance RecordDefinition (AgdaDefn ann) (AgdaRecordDefnLhs ann) (AgdaName ann) 
     , "constructor" <+> undoc ctor
     , nest 2 $ hardlines
       [ "fields"
-      , hsepFor fields \(SingleCell _ nm (Identity tp)) ->
+      , hardlinesFor fields \(SingleCell _ nm (Identity tp)) ->
         nest 2 $ undoc nm <+> ":" <\?> undoc tp
       ]
     ]
@@ -148,17 +151,17 @@ instance TelescopeLhs (AgdaLetDefnLhs ann) (AgdaSingleCell () ann) (AgdaMultiCel
 instance Definition (AgdaLet ann) (AgdaLetDefnLhs ann) (AgdaTm ann) where
   (AgdaLetDefnLhs (UnAnnotatedCells tele) (UnAnnotatedCell (SingleCell _ nm _))) .= e =
     doc $
-    nest 4 (undoc nm <+> agdaCells tele <+> "=" <\?> undoc e)
+    nest 4 (undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc e)
   (AgdaLetDefnLhs tele (SingleCell _ nm ann)) .= e =
     doc $
     nest 4 (undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore ann))) <\>
-    nest 4 (undoc nm <+> agdaCells tele <+> "=" <\?> undoc e)
+    nest 4 (undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc e)
 
 instance Let (AgdaLet ann) (AgdaTm ann) where
   let_ [] e = e
   let_ defns e =
     doc $
-    group ("let" <+> nest 4 (undoc $ hardlines defns) <\?> "in" <+> undoc e)
+    group ("let" <+> undoc (hardlines defns) <\?> "in" <+> undoc e)
 
 
 --------------------------------------------------------------------------------

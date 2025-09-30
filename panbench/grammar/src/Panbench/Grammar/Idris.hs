@@ -4,72 +4,240 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | Pretty printer for Idris.
 module Panbench.Grammar.Idris
-  ( Idris(..)
+  ( Idris
   ) where
 
-import Data.String (IsString(..))
+import Prelude hiding (pi)
 
+import Data.Coerce
+import Data.String (IsString(..))
+import Data.Functor.Identity
+import Data.Maybe
+
+import Numeric.Natural
+
+import Panbench.Grammar.Cell
 import Panbench.Grammar
 import Panbench.Pretty
 
-newtype Idris ann = IdrisDoc { getIdris :: Doc ann }
+data Idris ann
+
+--------------------------------------------------------------------------------
+-- Names
+
+newtype IdrisName ann = IdrisName (Doc ann)
   deriving newtype (Semigroup, Monoid, IsString)
 
-instance Name (Idris ann) where
+instance Name (IdrisName ann) where
   nameN x i = x <> pretty i
 
 --------------------------------------------------------------------------------
 -- Cells
 
-data IdrisVisibility
-  = IdrisVisible
-  | IdrisImplicit
+data IdrisVis
+  = Visible
+  | Implicit
+  deriving (Eq)
 
--- | Idris 2 does not support telescopic binders, but does support
--- multi-binding check cells using the syntax @(m, n : Nat)@.
+type IdrisMultiCell info ann = MultiCell info (IdrisName ann) (IdrisTm ann)
+type IdrisSingleCell info ann = SingleCell info (IdrisName ann) (IdrisTm ann)
+type IdrisRequiredCell info ann = Cell info Identity (IdrisName ann) Identity (IdrisTm ann)
+
+type IdrisTelescope hdInfo hdAnn docAnn = CellTelescope
+   IdrisVis [] (IdrisName docAnn) Maybe (IdrisTm docAnn)
+   hdInfo Identity (IdrisName docAnn) hdAnn (IdrisTm docAnn)
+
+-- | Apply a Idris visibility modifier to a document.
+idrisVis :: (IsDoc doc, IsString (doc ann)) => IdrisVis -> doc ann -> doc ann
+idrisVis Visible = enclose "(" ")"
+idrisVis Implicit = enclose "{" "}"
+
+-- | Render a Rocq binding cell.
 --
--- Moreover, Idris 2 doesn't have dedicated syntax for unannotated binding
--- cells, and opts to use @{m : _}@ or @{m, n : _}@
-data IdrisCell ann
-  = IdrisChks IdrisVisibility [(Idris ann)] (Idris ann)
-  | IdrisSyns IdrisVisibility [(Idris ann)]
-
--- | Set the visibility of a binding cell.
-setCellVisibility :: IdrisVisibility -> IdrisCell ann -> IdrisCell ann
-setCellVisibility vis (IdrisChks _ nms ann) = IdrisChks vis nms ann
-setCellVisibility vis (IdrisSyns _ nms) = IdrisSyns vis nms
-
-instance Chks (Idris ann) (Idris ann) (IdrisCell ann) where
-  chks = IdrisChks IdrisVisible
-
-instance Syns (Idris ann) (IdrisCell ann) where
-  syns = IdrisSyns IdrisVisible
-
-deriving via SingletonCell (IdrisCell ann) instance Syn (Idris ann) (IdrisCell ann)
-deriving via SingletonCell (IdrisCell ann) instance Chk (Idris ann) (Idris ann) (IdrisCell ann)
-
-instance Implicit (IdrisCell ann) where
-  implicit = setCellVisibility IdrisImplicit
+-- We use a bit of a trick here for annotations. Both 'Identity' and 'Maybe' are 'Foldable', so
+-- we can write a single function that handles optional and required annotations by folding
+-- over the annotation with @foldrr const underscore@.
+--
+-- We also don't support a general @idrisCells@ function: Idris *really* does not like multi-cells,
+-- so we should handle these on a case-by-case basis.
+idrisCell
+  :: (Foldable arity, Foldable tpAnn , IsDoc doc, IsString (doc ann))
+  => Cell IdrisVis arity (IdrisName ann) tpAnn (IdrisTm ann)
+  -> doc ann
+idrisCell (Cell vis names tp) = doc $ idrisVis vis (hsepMap coerce (punctuate "," names) <+> ":" <+> undoc (foldr const underscore tp))
 
 --------------------------------------------------------------------------------
--- Binders
+-- Top-level definitions
 
-idrisVisibility :: IdrisVisibility -> Idris ann -> Idris ann
-idrisVisibility IdrisVisible = enclose "(" ")"
-idrisVisibility IdrisImplicit = enclose "{" "}"
+newtype IdrisDefn ann = IdrisDefn (Doc ann)
+  deriving newtype (Semigroup, Monoid, IsString)
 
-idrisBinder :: IdrisCell ann -> Idris ann
-idrisBinder (IdrisChks vis nms ann) = idrisVisibility vis (hsep (punctuate "," nms) <+> ":" <+> ann)
-idrisBinder (IdrisSyns vis nms) = idrisVisibility vis (hsep (punctuate "," nms) <+> ":" <+> "_")
+type IdrisTmDefnLhs ann = IdrisTelescope () Maybe ann
+
+instance Definition (IdrisDefn ann) (IdrisTmDefnLhs ann) (IdrisTm ann) where
+  (UnAnnotatedCells tele :- UnAnnotatedCell (SingleCell _ nm _)) .= tm =
+    -- Unclear if Idris supports unannotated top-level bindings?
+    doc $
+    nest 4 (undoc nm <+> ":" <+> "_") <\>
+    nest 4 (undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc tm)
+  (tele :- SingleCell _ nm tp) .= tm =
+    doc $
+    nest 4 (undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore tp))) <\>
+    nest 4 (undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc tm)
+
+type IdrisPostulateDefnLhs ann = IdrisTelescope () Identity ann
+
+-- | Idris 2 does not support postulates OOTB, so we need to use the @believe_me : a -> b@
+-- primitive to do an unsafe cast. Somewhat annoyingly, we need to actually pick *something*
+-- to cast, and that thing really should vary based on the goal (EG: @believe_me Refl@ for equality, etc).
+--
+-- Pulling on this thread leads to a heap of issues with implicit resolution and requires our postulate
+-- code to be type-aware, so we just opt to punt and always use @believe_me ()@. This is
+-- unsafe and could lead to segfaults in compiled code, but the alternative is not worth the engineering effort.
+instance Postulate (IdrisDefn ann) (IdrisPostulateDefnLhs ann) where
+  postulate (tele :- RequiredCell _ nm tp) =
+    (tele :- SingleCell () nm (Just tp)) .= "believe_me" <+> "()"
+
+type IdrisDataDefnLhs ann = IdrisTelescope () Identity ann
+
+instance DataDefinition (IdrisDefn ann) (IdrisDataDefnLhs ann) (IdrisRequiredCell () ann) where
+  -- It appears that Idris 2 does not support parameterised inductives?
+  -- [TODO: Reed M, 28/09/2025] Think about naming conventions for constructors.
+  data_ (params :- RequiredCell _ nm tp) ctors =
+    doc $
+    nest 4 $
+    "data" <+> undoc nm <+> ":" <+> undoc (pi params tp) <+> "where" <\>
+      hardlinesFor ctors \(RequiredCell _ ctorNm ctorTp) ->
+        undoc ctorNm <+> ":" <+> undoc ctorTp
+
+type IdrisRecordDefnLhs ann = IdrisTelescope () Identity ann
+
+instance RecordDefinition (IdrisDefn ann) (IdrisRecordDefnLhs ann) (IdrisName ann) (IdrisRequiredCell () ann) where
+  -- Idris does not have universe levels so it does not allow for a sort annotation
+  -- on a record definition.
+  record_ (params :- (RequiredCell _ nm _)) ctor fields =
+    doc $
+    nest 4 $
+    "record" <+> undoc nm <+> hsepMap idrisCell params <+> "where" <\>
+      "constructor" <+> undoc ctor <\>
+      hardlinesFor fields \(RequiredCell _ fieldNm fieldTp) ->
+        undoc fieldNm <+> ":" <+> undoc fieldTp
+
+instance Newline (IdrisDefn ann) where
+  newlines n = hardlines (replicate (fromIntegral n) mempty)
+
+--------------------------------------------------------------------------------
+-- Let Bindings
+
+newtype IdrisLet ann = IdrisLet (Doc ann)
+  deriving newtype (Semigroup, Monoid, IsString)
+
+type IdrisLetDefnLhs ann = IdrisTelescope () Maybe ann
+
+-- | The grammar of Idris let bindings is a bit complicated, as it has
+-- two separate tokens for definitions: @=@ and @:=@.
+-- This is used to avoid the gramatical ambiguity caused by
+--
+-- @
+-- let ty : Type = v = v in ty
+-- @
+--
+-- which can parse as either
+--
+-- @
+-- let ty : (Type = v) = v in ty
+-- @
+--
+-- or
+--
+-- @
+-- let ty : Type = (v = v) in ty
+-- @
+--
+-- To further complicate matters, we can't use the @:=@ token when introducing a local definition.
+-- This is used to resolve ambiguities like
+--
+-- @
+-- let fo : m -> a -> m
+--    fo ac el = ac <+> f el
+--    initial := neutral
+-- in foldl fo initial
+-- @
+--
+-- We opt to use @:=@ whenever we can, and only fall back to @=@ when creating a parameterised definition.
+-- This still leaves some space for generating ambigious code like
+--
+-- @
+-- let ugh : a -> Type
+--     ugh x = x = x
+-- in ...
+-- @
+--
+-- This is a fundamental flaw with the grammar. We could fix this by conditionally inserting parens,
+-- but this is more effort than it's worth.
+--
+-- See https://idris2.readthedocs.io/en/latest/tutorial/typesfuns.html#let-bindings for more.
+instance Definition (IdrisLet ann) (IdrisLetDefnLhs ann) (IdrisTm ann) where
+  ([] :- SingleCell _ nm tp) .= tm =
+    -- Unparameterised binding, use @:=@ with an inline type annotation.
+    doc $
+    nest 4 $
+    undoc nm <> undoc (maybe mempty (":" <+>) tp) <+> ":=" <\?> undoc tm
+  (UnAnnotatedCells tele :- UnAnnotatedCell (SingleCell _ nm _)) .= tm =
+    -- Unannotated parameterised binding: omit the signature, and use @=@.
+    doc $
+    nest 4 $
+    undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc tm
+  (tele :- SingleCell _ nm tp) .= tm =
+    -- Annotated parameterised binding, generate a signature, and use @=@.
+    doc $
+    hardlines
+    [ nest 4 $ undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore tp))
+    , nest 4 $ undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc tm
+    ]
+
+instance Let (IdrisLet ann) (IdrisTm ann) where
+  let_ defns e =
+    -- [FIXME: Reed M, 28/09/2025] Try to lay things out in a single line if we can.
+    doc $
+    "let" <+> undoc (hardlines defns) <\> "in" <+> undoc e
 
 --------------------------------------------------------------------------------
 -- Terms
 
-instance Var (Idris ann) (Idris ann) where
-  var = id
+newtype IdrisTm ann = IdrisTm (Doc ann)
+  deriving newtype (Semigroup, Monoid, IsString)
 
-instance Pi (IdrisCell ann) (Idris ann) where
-  pi arg body = idrisBinder arg <+> "->" <+> body
+instance Pi (IdrisTm ann) (IdrisMultiCell IdrisVis ann) where
+  pi args body = foldr (\arg tp -> idrisCell arg <+> "->" <+> tp) body args
+
+instance Underscore (IdrisTm ann) where
+  underscore = "_"
+
+--------------------------------------------------------------------------------
+-- Modules
+
+newtype IdrisMod ann = IdrisMod { getIdrisMod :: Doc ann }
+  deriving newtype (Semigroup, Monoid, IsString)
+
+newtype IdrisHeader ann = IdrisHeader (Doc ann)
+  deriving newtype (Semigroup, Monoid, IsString)
+
+instance Module (IdrisMod ann) (IdrisHeader ann) (IdrisDefn ann) where
+  -- [FIXME: Reed M, 30/09/2025] Adapted from existing code, why do we use @module Main@?
+  module_ _ header body =
+    doc $ hardlines
+    [ "module Main"
+    , undoc header
+    , mempty
+    , undoc body
+    , mempty
+    , "main : IO ()"
+    , "main = putStrLn \"\""
+    ]

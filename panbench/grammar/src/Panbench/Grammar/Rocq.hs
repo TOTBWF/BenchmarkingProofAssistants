@@ -4,190 +4,216 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | Pretty printer for Rocq.
 module Panbench.Grammar.Rocq
-  ( Rocq(..)
+  ( Rocq
   ) where
 
-import Data.Text (Text)
+import Prelude hiding (pi)
 
+import Data.Coerce
+import Data.Functor
+import Data.Functor.Identity
 import Data.String (IsString(..))
+import Data.Text (Text)
 
 import Numeric.Natural
 
+import Panbench.Grammar.Cell
 import Panbench.Grammar
 import Panbench.Pretty
 
-newtype Rocq ann = RocqDoc { getRocq :: Doc ann }
+-- | Type-level symbol for Rocq.
+data Rocq ann
+
+--------------------------------------------------------------------------------
+-- Names
+
+newtype RocqName ann = RocqnName (Doc ann)
   deriving newtype (Semigroup, Monoid, IsString)
 
-instance Name (Rocq ann) where
+instance Name (RocqName ann) where
   nameN x i = x <> pretty i
-
 
 --------------------------------------------------------------------------------
 -- Cells
 
-data RocqVisibility
-  = RocqVisible
-  -- ^ A visible argument.
-  | RocqMaximalImplicit
+data RocqVis
+  = Visible
+  | MaximalImplicit
   -- ^ A maximal implicit, which are written as @{x}@.
   --
   -- These always get fully instantiated when a function with implicit
   -- arguments is partially applied.
   -- See https://rocq-prover.org/doc/V9.0.0/refman/language/extensions/implicit-arguments.html
-  | RocqNonMaximalImplicit
+  | NonMaximalImplicit
   -- ^ A non-maximal implicit, which are written as @[x]@.
   --
   -- These do not get automatically instantiated when a function with implicit
   -- arguments is partially applied.
   -- See https://rocq-prover.org/doc/V9.0.0/refman/language/extensions/implicit-arguments.html
+  deriving (Eq)
 
-data RocqCell ann
-  = RocqChks RocqVisibility [(Rocq ann)] (Rocq ann)
-  | RocqSyns RocqVisibility [(Rocq ann)]
+type RocqMultiCell info ann = MultiCell info (RocqName ann) (RocqTm ann)
+type RocqSingleCell info ann = SingleCell info (RocqName ann) (RocqTm ann)
+type RocqRequiredCell info ann = Cell info Identity (RocqName ann) Identity (RocqTm ann)
 
-setCellVisibility :: RocqVisibility -> RocqCell ann -> RocqCell ann
-setCellVisibility vis (RocqChks _ nms ann) = RocqChks vis nms ann
-setCellVisibility vis (RocqSyns _ nms) = RocqSyns vis nms
+type RocqTelescope hdInfo hdAnn docAnn = CellTelescope
+   RocqVis [] (RocqName docAnn) Maybe (RocqTm docAnn)
+   hdInfo Identity (RocqName docAnn) hdAnn (RocqTm docAnn)
 
-instance Syns (Rocq ann) (RocqCell ann) where
-  syns = RocqSyns RocqVisible
+-- | Apply a Rocq visibility modifier to a document.
+rocqVis :: (IsDoc doc, IsString (doc ann)) => RocqVis -> doc ann -> doc ann
+rocqVis Visible = enclose "(" ")"
+rocqVis MaximalImplicit = enclose "{" "}"
+rocqVis NonMaximalImplicit = enclose "[" "]"
 
-instance Chks (Rocq ann) (Rocq ann) (RocqCell ann) where
-  chks = RocqChks RocqVisible
+-- | Render a Rocq binding cell.
+--
+-- We use a bit of a trick here for annotations. Both 'Identity' and 'Maybe' are 'Foldable', so
+-- we can write a single function that handles optional and required annotations by checking if
+-- the annotation is empty with 'null', and then folding over it to actually print.
+rocqCell
+  :: (Foldable arity, Foldable tpAnn , IsDoc doc, IsString (doc ann))
+  => Cell RocqVis arity (RocqName ann) tpAnn (RocqTm ann)
+  -> doc ann
+rocqCell (Cell vis names tp)
+  | null tp = rocqVis vis (hsepMap coerce names)
+  | otherwise = rocqVis vis (hsepMap coerce names <+> ":" <+> hsepMap coerce tp)
 
-deriving via SingletonCell (RocqCell ann) instance Syn (Rocq ann) (RocqCell ann)
-deriving via SingletonCell (RocqCell ann) instance Chk (Rocq ann) (Rocq ann) (RocqCell ann)
-
--- | To keep feature parity with other languages (Lean, Agda), we opt to treat 'implict' as a maximal
--- implicit.
-instance Implicit (RocqCell ann) where
-  implicit = setCellVisibility RocqMaximalImplicit
+rocqCells
+  :: (Foldable arity, Foldable tpAnn, IsDoc doc, IsString (doc ann))
+  => [Cell RocqVis arity (RocqName ann) tpAnn (RocqTm ann)]
+  -> doc ann
+rocqCells = hsepMap rocqCell
 
 --------------------------------------------------------------------------------
--- Binders
+-- Top-level definitions
 
-rocqVisibility :: RocqVisibility -> Rocq ann -> Rocq ann
-rocqVisibility RocqVisible = enclose "(" ")"
-rocqVisibility RocqMaximalImplicit = enclose "{" "}"
-rocqVisibility RocqNonMaximalImplicit = enclose "[" "]"
+newtype RocqDefn ann = RocqDefn (Doc ann)
+  deriving newtype (Semigroup, Monoid, IsString)
 
-rocqBinder :: RocqCell ann -> Rocq ann
-rocqBinder (RocqChks vis nms ann) = rocqVisibility vis (hsep nms <+> ":" <+> ann)
-rocqBinder (RocqSyns vis nms) = rocqVisibility vis (hsep nms)
+type RocqTmDefnLhs ann = RocqTelescope () Maybe ann
 
--- | Rocq supports multi-cell pi-types like
+instance Definition (RocqDefn ann) (RocqTmDefnLhs ann) (RocqTm ann) where
+  (tele :- SingleCell _ nm tp) .= tm =
+    doc $
+    nest 4 $
+    "Definition" <+> undoc nm <+> rocqCells tele <> undoc (maybe mempty (":" <+>) tp) <+> ":=" <\?>
+      undoc tm <> "."
+
+type RocqPostulateDefnLhs ann = RocqTelescope () Identity ann
+
+instance Postulate (RocqDefn ann) (RocqPostulateDefnLhs ann) where
+  postulate (tele :- RequiredCell _ nm tp) =
+    doc $
+    nest 4 $
+    "Axiom" <+> undoc nm <+> ":" <\?>
+      undoc (pi tele tp) <> "."
+
+type RocqDataDefnLhs ann = RocqTelescope () Identity ann
+
+instance DataDefinition (RocqDefn ann) (RocqDataDefnLhs ann) (RocqRequiredCell () ann) where
+  data_ (params :- RequiredCell _ nm tp) ctors =
+    doc $
+    "Inductive" <+> undoc nm <+> rocqCells params <+> ":" <+> undoc tp <\>
+    hardlinesFor ctors (\(RequiredCell _ nm tp) -> nest 4 ("|" <+> undoc nm <+> ":" <\?> undoc tp)) <> "."
+
+-- [TODO: Reed M, 29/09/2025] Technically rocq can omit type signatures on records.
+type RocqRecordDefnLhs ann = RocqTelescope () Identity ann
+
+instance RecordDefinition (RocqDefn ann) (RocqRecordDefnLhs ann) (RocqName ann) (RocqRequiredCell () ann) where
+  record_ (params :- (RequiredCell _ nm tp)) ctor fields =
+    doc $
+    nest 2 $
+    "Record" <+> undoc nm <+> rocqCells params <+> ":" <+> undoc tp <+> ":=" <+>
+      group (undoc ctor <\?> "{ " <+> nest 2 (vsep (punctuate ";" (fields <&> \(RequiredCell _ nm tp) -> undoc nm <+> ":" <+> undoc tp))) <+> "}.")
+
+instance Newline (RocqDefn ann) where
+  newlines n = hardlines (replicate (fromIntegral n) mempty)
+
+--------------------------------------------------------------------------------
+-- Let Bindings
 --
--- @
--- forall (x y : nat) (p q : x = y), ...
--- @
-rocqBinders :: [RocqCell ann] -> Rocq ann
-rocqBinders = hsepMap rocqBinder
+-- Right now, these are identical to top-level bindings, but in the future they
+-- will include different left-hand sides.
+
+newtype RocqLet ann = RocqLet (Doc ann)
+  deriving newtype (Semigroup, Monoid, IsString)
+
+type RocqLetDefnLhs ann = RocqTelescope () Maybe ann
+
+instance Definition (RocqLet ann) (RocqLetDefnLhs ann) (RocqTm ann) where
+  (tele :- (SingleCell _ nm tp)) .= tm =
+    doc $
+    nest 4 $
+    undoc nm <+> rocqCells tele <> undoc (maybe mempty (":" <+>) tp) <+> ":=" <\?> undoc tm
+
+instance Let (RocqLet ann) (RocqTm ann) where
+  let_ defns tm =
+    doc $ foldr (\defn e -> "let" <+> undoc defn <+> "in" <\?> e) (undoc tm) defns
 
 --------------------------------------------------------------------------------
 -- Terms
 
-instance Var (Rocq ann) (Rocq ann) where
-  var = id
+newtype RocqTm ann = RocqTm (Doc ann)
+  deriving newtype (Semigroup, Monoid, IsString)
 
-instance Pi [RocqCell ann] (Rocq ann) where
+instance Name (RocqTm ann) where
+  nameN x i = x <> pretty i
+
+instance Pi (RocqTm ann) (RocqMultiCell RocqVis ann) where
   pi [] body = body
-  pi args body = "forall" <+> rocqBinders args <> "," <\?> body
+  pi args tp = "forall" <+> rocqCells args <> "," <+> tp
 
+instance Underscore (RocqTm ann) where
+  underscore = "_"
 
--- --------------------------------------------------------------------------------
--- -- Patterns
+instance Literal (RocqTm ann) "Nat" Natural where
+  mkLit = pretty
 
--- --------------------------------------------------------------------------------
--- -- Definitions
+instance Builtin (RocqTm ann) "Nat" (RocqTm ann) where
+  mkBuiltin = "nat"
 
--- -- | Print a let-bound local definition.
--- letDef :: Defn Name (Maybe (Rocq ann)) (Rocq ann) -> Rocq ann
--- letDef (Ann nm (Just tp) := tm) =
---   pretty nm <+> ":" <+> tp <+> ":=" <+> tm
--- letDef (Ann nm Nothing := tm) =
---   pretty nm <+> ":=" <+> tm
+instance Builtin (RocqTm ann) "+" (RocqTm ann -> RocqTm ann -> RocqTm ann) where
+  mkBuiltin x y = x <+> "+" <+> y
 
--- --------------------------------------------------------------------------------
--- -- Terms
+--------------------------------------------------------------------------------
+-- Modules
 
--- -- | Non-dependent pi-types.
--- instance Pi (Rocq ann) (Rocq ann) where
---   pi x y = x <+> "->" <+> y
+newtype RocqHeader ann = RocqHeader (Doc ann)
+  deriving newtype (Semigroup, Monoid, IsString)
 
+newtype RocqMod ann = RocqMod { getRocqMod :: Doc ann }
+  deriving newtype (Semigroup, Monoid, IsString)
 
--- -- [implicit x, y] :-> __
-
--- -- instance Pi (Rocq ann) (Rocq ann) where
--- -- instance Term (Rocq ann) where
--- --   var x = pretty x
--- --   arr x y = x <+> "->" <+> y
--- --   pi (xs :- y) = binders xs <+> "->" <+> y
--- --   app x ys = x <\?> sep ys
--- --   let_ [def] body = "let" <+> letDef def <+> "in" <+> body
--- --   let_ defs body = hardlinesMap (\def -> "let" <+> letDef def <+> "in") defs <\> body
--- --   univ = "Type"
--- --   parens = enclose "(" ")"
-
--- --------------------------------------------------------------------------------
--- -- Builtins
-
--- instance Builtin (Rocq ann) "+" (Rocq ann -> Rocq ann -> Rocq ann) where
---   mkBuiltin x y = x <+> "+" <+> y
-
--- instance Builtin (Rocq ann) "suc" (Rocq ann -> Rocq ann) where
---   mkBuiltin x = "S" <+> x
-
--- instance Builtin (Rocq ann) "Nat" (Rocq ann) where
---   mkBuiltin = "nat"
-
--- instance Literal (Rocq ann) "Nat" Natural where
---   mkLit = pretty
-
--- --------------------------------------------------------------------------------
--- -- Modules
-
--- instance Module (Rocq ann) (Rocq ann) where
---   module_ modNm header body =
---     hardlines
---     [ header
---     , "Module" <+> pretty modNm <> "."
---     , body
---     , "End" <+> pretty modNm <> "."
---     ]
-
---   defTm nm tp tm =
---     "Definition" <+> pretty nm <+> ":" <+> tp <+> ":=" <\?> nest 4 tm <> "." <> hardline
-
---   defMatch nm tp clauses =
---     "Fixpoint" <+> pretty nm <+> ":=" <\> __
-
---   defData nm params ctors =
---     __
+instance Module (RocqMod ann) (RocqHeader ann) (RocqDefn ann) where
+  module_ nm header body =
+    doc $ hardlines
+    [ undoc header
+    , mempty
+    , "Module" <+> pretty nm <+> "."
+    , undoc body
+    , "End" <+> pretty nm <+> "."
+    ]
 
 --------------------------------------------------------------------------------
 -- Imports
 
-requireImport :: Text -> Rocq ann
-requireImport m = "Require" <+> "Import" <+> pretty m <> "." <> hardline
+requireImport :: Text -> RocqHeader ann
+requireImport m = "Require" <+> "Import" <+> pretty m <> "."
 
-justImport :: Text -> Rocq ann
-justImport m = "Import" <+> pretty m <> "." <> hardline
+justImport :: Text -> RocqHeader ann
+justImport m = "Import" <+> pretty m <> "."
 
 -- | The equivalent of @Data.Nat@ is built-in for Rocq.
-instance Import (Rocq ann) "Data.Nat" where
+instance Import (RocqHeader ann) "Data.Nat" where
   mkImport = mempty
 
-instance Import (Rocq ann) "Data.Vec" where
-  mkImport =
-    mconcat
-    [ requireImport "Coq.Vectors.Vector"
-    , justImport "VectorNotations"
-    ]
-
 -- | The equivalent of @Data.List@ is built-in for Rocq.
-instance Import (Rocq ann) "Data.List" where
+instance Import (RocqHeader ann) "Data.List" where
   mkImport = mempty
