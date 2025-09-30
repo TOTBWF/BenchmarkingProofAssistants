@@ -97,11 +97,13 @@ rocqCell (Cell vis names tp)
   | null tp = rocqVis vis (hsepMap coerce names)
   | otherwise = rocqVis vis (hsepMap coerce names <+> ":" <+> hsepMap coerce tp)
 
+-- | Render a list of Rocq binding cells, and add a final space if the list is non-empty.
 rocqCells
-  :: (Foldable arity, Foldable tpAnn, IsDoc doc, IsString (doc ann))
+  :: (Foldable arity, Foldable tpAnn, IsDoc doc, Monoid (doc ann), IsString (doc ann))
   => [Cell RocqVis arity (RocqName ann) tpAnn (RocqTm ann)]
   -> doc ann
-rocqCells = hsepMap rocqCell
+rocqCells [] = mempty
+rocqCells cells = hsepMap rocqCell cells <> space
 
 --------------------------------------------------------------------------------
 -- Top-level definitions
@@ -135,7 +137,7 @@ type RocqDataDefnLhs ann = RocqTelescope () Identity ann
 instance DataDefinition (RocqDefn ann) (RocqDataDefnLhs ann) (RocqRequiredCell () ann) where
   data_ (params :- RequiredCell _ nm tp) ctors =
     rocqDefn $
-    "Inductive" <+> undoc nm <+> rocqCells params <+> ":" <+> undoc tp <+> ":=" <\>
+    "Inductive" <+> undoc nm <+> rocqCells params <> ":" <+> undoc tp <+> ":=" <\>
     hardlinesFor ctors (\(RequiredCell _ nm tp) -> nest 4 ("|" <+> undoc nm <+> ":" <\?> undoc tp)) <> "."
 
 -- [TODO: Reed M, 29/09/2025] Technically rocq can omit type signatures on records.
@@ -145,8 +147,8 @@ instance RecordDefinition (RocqDefn ann) (RocqRecordDefnLhs ann) (RocqName ann) 
   record_ (params :- (RequiredCell _ nm tp)) ctor fields =
     rocqDefn $
     nest 2 $
-    "Record" <+> undoc nm <+> rocqCells params <+> ":" <+> undoc tp <+> ":=" <+>
-      group (undoc ctor <\?> "{ " <+> nest 2 (vsep (punctuate ";" (fields <&> \(RequiredCell _ nm tp) -> undoc nm <+> ":" <+> undoc tp))) <+> "}.")
+    "Record" <+> undoc nm <+> rocqCells params <> ":" <+> undoc tp <+> ":=" <+>
+      group (undoc ctor <\?> "{" <+> nest 2 (vsep (punctuate ";" (fields <&> \(RequiredCell _ nm tp) -> undoc nm <+> ":" <+> undoc tp))) <+> "}.")
 
 instance Newline (RocqDefn ann) where
   newlines n = rocqDefn $ hardlines (replicate (fromIntegral n) mempty)
