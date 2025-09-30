@@ -258,6 +258,15 @@ class Let defn tm | tm -> defn, defn -> tm where
   let_ :: [defn] -> tm -> tm
 
 
+-- | Sized let bindings.
+letN
+  :: (Let defn tm)
+  => Natural
+  -> (Natural -> defn)
+  -> tm
+  -> tm
+letN size defn tm = let_ [ defn i | i <- [1..size] ] tm
+
 class Underscore tm where
   underscore :: tm
 

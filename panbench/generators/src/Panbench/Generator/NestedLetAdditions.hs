@@ -11,7 +11,8 @@ generator =
       [ import_ "Data.Nat"
       ] \size ->
       [ ([] |- ("n" .: builtin "Nat")) .=
-          let_ [ [] |- syn (nameN "x" 0) .= (nat 1)] $
-          let_ [ [] |- syn (nameN "x" i) .= (op2 "+" (nameN "x" (i - 1)) (nameN "x" (i - 1))) | i <- [1..size]] $
+          let_ ( ([] |- syn (nameN "x" 1) .= (nat 1))
+               : [[] |- syn (nameN "x" i) .= (op2 "+" (nameN "x" (i - 1)) (nameN "x" (i - 1))) | i <- [2..size]]
+               ) $
           nameN "x" size
       ]
