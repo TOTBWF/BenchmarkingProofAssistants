@@ -1,20 +1,21 @@
 module FirstLast_VariableModule where
+
 open import Agda.Builtin.Nat
 
-x1 : Nat
-x1 = 1
+x₁ : Nat
+x₁ = 1
 
-x2 : Nat
-x2 = 2
+x₂ : Nat
+x₂ = 2
 
-x3 : Nat
-x3 = 3
+x₃ : Nat
+x₃ = 3
 
-x4 : Nat
-x4 = 4
+x₄ : Nat
+x₄ = 4
 
-x5 : Nat
-x5 = 5
+x₅ : Nat
+x₅ = 5
 
 result : Nat
-result = x1 + x5
+result = x₁ + x₅
