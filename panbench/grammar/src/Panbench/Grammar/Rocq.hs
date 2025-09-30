@@ -225,9 +225,11 @@ instance Module (RocqMod ann) (RocqHeader ann) (RocqDefn ann) where
   module_ nm (RocqHeader header) (RocqDefn body) =
     doc $ hardlines
     [ if null header then mempty else hardline <> hardlines header
-    , "Module" <+> pretty nm <+> "."
+    , "Module" <+> pretty nm <> "."
+    , mempty
     , hardlines (punctuate hardline body)
-    , "End" <+> pretty nm <+> "."
+    , mempty
+    , "End" <+> pretty nm <> "."
     ]
 
 --------------------------------------------------------------------------------
