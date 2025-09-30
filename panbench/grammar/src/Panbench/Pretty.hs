@@ -222,8 +222,8 @@ enclose = liftDoc3 P.enclose
 liftDocList :: (IsDoc doc) => ([P.Doc ann] -> P.Doc ann) -> [doc ann] -> doc ann
 liftDocList f xs = coerce (f (coerce xs))
 
-hsep :: (IsDoc doc) => [doc ann] -> doc ann
-hsep = liftDocList P.hsep
+hsep :: (IsDoc doc, Foldable t) => t (doc ann) -> doc ann
+hsep = liftDocList P.hsep . toList
 
 vsep :: (IsDoc doc) => [doc ann] -> doc ann
 vsep = liftDocList P.vsep
@@ -235,7 +235,7 @@ vcat :: (IsDoc doc) => [doc ann] -> doc ann
 vcat = liftDocList P.vcat
 
 hardlines :: (IsDoc doc) => [doc ann] -> doc ann
-hardlines = foldr (<\>) (doc mempty)
+hardlines = hardlinesMap id
 
 concatMapWith
   :: (IsDoc doc, Foldable t)

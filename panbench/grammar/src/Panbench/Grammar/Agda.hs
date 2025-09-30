@@ -19,6 +19,7 @@ module Panbench.Grammar.Agda
 import Prelude hiding (pi)
 
 import Data.Coerce
+import Data.Default
 import Data.Functor.Identity
 import Data.Maybe
 import Data.String (IsString(..))
@@ -51,9 +52,17 @@ data AgdaVis
   -- ^ Implicit arguments like @(x : A)@.
   deriving (Eq)
 
+instance Default AgdaVis where
+  def = Visible
+
 type AgdaMultiCell info ann = MultiCell info (AgdaName ann) (AgdaTm ann)
 type AgdaSingleCell info ann = SingleCell info (AgdaName ann) (AgdaTm ann)
 type AgdaRequiredCell info ann = Cell info Identity (AgdaName ann) Identity (AgdaTm ann)
+
+type AgdaTelescope hdInfo hdAnn docAnn = CellTelescope
+   AgdaVis [] (AgdaName docAnn) Maybe (AgdaTm docAnn)
+   hdInfo Identity (AgdaName docAnn) hdAnn (AgdaTm docAnn)
+
 
 -- | Surround a document with the appropriate delimiters for a given 'Visibility'.
 agdaVis :: (IsDoc doc, IsString (doc ann)) => AgdaVis -> doc ann -> doc ann
@@ -70,8 +79,15 @@ agdaCell :: (Foldable arity, Foldable tpAnn, IsDoc doc, IsString (doc ann)) => C
 agdaCell (Cell vis names tp) | null tp = agdaVis vis (hsepMap coerce names)
                              | otherwise = agdaVis vis (hsepMap coerce names <+> ":" <+> hsepMap coerce tp)
 
-agdaCells :: (Foldable arity, Foldable tpAnn, IsDoc doc, IsString (doc ann)) => [Cell AgdaVis arity (AgdaName ann) tpAnn (AgdaTm ann)] -> doc ann
-agdaCells = hsepMap agdaCell
+-- | Render a list of Agda binding cells, and add a final space if the list is non-empty
+agdaCells :: (Foldable arity, Foldable tpAnn, IsDoc doc, Monoid (doc ann), IsString (doc ann)) => [Cell AgdaVis arity (AgdaName ann) tpAnn (AgdaTm ann)] -> doc ann
+agdaCells [] = mempty
+agdaCells cells = hsepMap agdaCell cells <> space
+
+-- | Render the names of a list of Agda binding cells, and add a final space if the list is non-empty.
+agdaCellNames :: (Foldable arity, Foldable tpAnn, IsDoc doc, Monoid (doc ann), IsString (doc ann)) => [Cell AgdaVis arity (AgdaName ann) tpAnn (AgdaTm ann)] -> doc ann
+agdaCellNames [] = mempty
+agdaCellNames cells = coerce (hsepMap (hsep . cellNames) cells <> space)
 
 --------------------------------------------------------------------------------
 -- Top-level definitions
@@ -79,53 +95,48 @@ agdaCells = hsepMap agdaCell
 newtype AgdaDefn ann = AgdaDefn (Doc ann)
   deriving newtype (Semigroup, Monoid, IsString)
 
--- [TODO: Reed M, 27/09/2025] This feels bad, and should probably be some sort of newtype deriving?
-data AgdaTmDefnLhs ann
-  = AgdaTmDefnLhs [AgdaMultiCell AgdaVis ann] (AgdaSingleCell () ann)
-
-instance TelescopeLhs (AgdaTmDefnLhs ann) (AgdaSingleCell () ann) (AgdaMultiCell AgdaVis ann) where
-  (|-) = AgdaTmDefnLhs
+type AgdaTmDefnLhs ann = AgdaTelescope () Maybe ann
 
 instance Definition (AgdaDefn ann) (AgdaTmDefnLhs ann) (AgdaTm ann) where
-  (AgdaTmDefnLhs (UnAnnotatedCells tele) (UnAnnotatedCell (SingleCell _ nm _))) .= e =
+  (UnAnnotatedCells tele :- SingleCell _ nm Nothing) .= e =
     doc $
-    nest 4 (undoc nm <+> agdaCells tele <+> "=" <\?> undoc e)
-  (AgdaTmDefnLhs tele (SingleCell _ nm ann)) .= e =
+    nest 2 $
+    undoc nm <+> agdaCells tele <> "=" <> group (line <> undoc e)
+  (tele :- SingleCell _ nm ann) .= e =
     doc $
-    nest 4 (undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore ann))) <\>
-    nest 4 (undoc nm <+> agdaCells tele <+> "=" <\?> undoc e)
+    hardlinesMap (nest 2)
+    [ undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore ann))
+    , undoc nm <+> agdaCells tele <> "=" <> group (line <> undoc e)
+    ]
 
-data AgdaPostulateDefnLhs ann
-  = AgdaPostulateDefnLhs [AgdaMultiCell AgdaVis ann] (AgdaRequiredCell () ann)
+type AgdaPostulateDefnLhs ann = AgdaTelescope () Identity ann
 
 instance Postulate (AgdaDefn ann) (AgdaPostulateDefnLhs ann) where
-  postulate (AgdaPostulateDefnLhs tele (SingleCell _ nm (Identity ann))) =
+  postulate (tele :- RequiredCell _ nm tp) =
     doc $
-    nest 4 (undoc nm <+> ":" <+> undoc (pi tele ann))
+    nest 4 (undoc nm <+> ":" <+> undoc (pi tele tp))
 
-data AgdaDataDefnLhs ann
-  = AgdaDataDefnLhs [AgdaMultiCell AgdaVis ann] (AgdaRequiredCell () ann)
+type AgdaDataDefnLhs ann = AgdaTelescope () Identity ann
 
 instance DataDefinition (AgdaDefn ann) (AgdaDataDefnLhs ann) (AgdaRequiredCell () ann) where
-  data_ (AgdaDataDefnLhs params (SingleCell _ nm (Identity tp))) ctors =
+  data_ (params :- RequiredCell _ nm tp) ctors =
     doc $
     nest 2 $
       "data" <+> undoc nm <+> agdaCells params <+> ":" <+> undoc tp <+> "where" <\>
-      hardlinesFor ctors \(SingleCell _ nm (Identity tp)) ->
+      hardlinesFor ctors \(RequiredCell _ nm tp) ->
         nest 2 $ undoc nm <+> ":" <\?> undoc tp
 
-data AgdaRecordDefnLhs ann
-  = AgdaRecordDefnLhs [AgdaMultiCell AgdaVis ann] (AgdaRequiredCell () ann)
+type AgdaRecordDefnLhs ann = AgdaTelescope () Identity ann
 
 instance RecordDefinition (AgdaDefn ann) (AgdaRecordDefnLhs ann) (AgdaName ann) (AgdaRequiredCell () ann) where
-  record_ (AgdaRecordDefnLhs params (SingleCell _ nm (Identity tp))) ctor fields =
+  record_ (params :- RequiredCell _ nm tp) ctor fields =
     doc $
     nest 2 $ hardlines
     [ "record" <+> undoc nm <+> agdaCells params <+> ":" <+> undoc tp <+> "where"
     , "constructor" <+> undoc ctor
     , nest 2 $ hardlines
       [ "fields"
-      , hardlinesFor fields \(SingleCell _ nm (Identity tp)) ->
+      , hardlinesFor fields \(RequiredCell _ nm tp) ->
         nest 2 $ undoc nm <+> ":" <\?> undoc tp
       ]
     ]
@@ -142,26 +153,25 @@ instance Newline (AgdaDefn ann) where
 newtype AgdaLet ann = AgdaLet (Doc ann)
   deriving newtype (Semigroup, Monoid, IsString)
 
-data AgdaLetDefnLhs ann
-  = AgdaLetDefnLhs [AgdaMultiCell AgdaVis ann] (AgdaSingleCell () ann)
+type AgdaLetDefnLhs ann = AgdaTelescope () Maybe ann
 
-instance TelescopeLhs (AgdaLetDefnLhs ann) (AgdaSingleCell () ann) (AgdaMultiCell AgdaVis ann) where
-  (|-) = AgdaLetDefnLhs
 
 instance Definition (AgdaLet ann) (AgdaLetDefnLhs ann) (AgdaTm ann) where
-  (AgdaLetDefnLhs (UnAnnotatedCells tele) (UnAnnotatedCell (SingleCell _ nm _))) .= e =
+  (UnAnnotatedCells tele :- UnAnnotatedCell (SingleCell _ nm _)) .= e =
     doc $
-    nest 4 (undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc e)
-  (AgdaLetDefnLhs tele (SingleCell _ nm ann)) .= e =
+    nest 4 (undoc nm <+> agdaCellNames tele <> "=" <\?> undoc e)
+  (tele :- SingleCell _ nm ann) .= e =
     doc $
-    nest 4 (undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore ann))) <\>
-    nest 4 (undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc e)
+    hardlines
+    [ undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore ann))
+    , undoc nm <+> agdaCellNames tele <> "=" <> line <> undoc e
+    ]
 
 instance Let (AgdaLet ann) (AgdaTm ann) where
   let_ [] e = e
   let_ defns e =
     doc $
-    group ("let" <+> undoc (hardlines defns) <\?> "in" <+> undoc e)
+    "let" <+> nest 4 (hardlines (undocs defns)) <> line <> "in" <+> nest 3 (undoc e)
 
 
 --------------------------------------------------------------------------------
@@ -173,6 +183,9 @@ instance Name (AgdaTm ann) where
 instance Pi (AgdaTm ann) (AgdaMultiCell AgdaVis ann) where
   pi [] body = body
   pi args body = agdaCells args <\?> "→" <+> body
+
+instance App (AgdaTm ann) where
+  app fn args = foldr (<+>) fn args
 
 instance Underscore (AgdaTm ann) where
   underscore = "_"
@@ -201,8 +214,8 @@ instance Module (AgdaMod ann) (AgdaHeader ann) (AgdaDefn ann) where
     [ "module" <+> pretty nm <+> "where"
     , mempty
     , undoc header
-    , mempty
     , undoc body
+    , mempty
     ]
 
 --------------------------------------------------------------------------------
