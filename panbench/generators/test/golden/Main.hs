@@ -8,6 +8,7 @@ import Data.ByteString.Lazy as LBS
 
 import Panbench.Grammar.Agda
 import Panbench.Grammar.Rocq
+import Panbench.Grammar.Lean
 
 import Panbench.Generator
 
@@ -105,6 +106,13 @@ rocqModuleTest
 rocqModuleTest gen size =
   printTestForLang "rocq" (genModuleVia getRocqMod size) ".v" (T.unpack (genName gen)) gen
 
+leanModuleTest
+  :: GenModule size (LeanHeader ()) (LeanDefn ())
+  -> size
+  -> TestTree
+leanModuleTest gen size =
+  printTestForLang "lean" (genModuleVia getLeanMod size) ".lean" (T.unpack (genName gen)) gen
+
 -- * Tests
 --
 -- These tests are all taken from the original @Tests.hs@ file,
@@ -148,5 +156,22 @@ main = defaultMain $
     , rocqModuleTest SequentialDependentRecords.generator 5
     , rocqModuleTest SequentialSimpleRecords.generator 5
     , rocqModuleTest SimpleDataDefinitions.generator 5
+    ]
+  , testGroup "Lean"
+    [ leanModuleTest DatatypeParameters.generator 5
+    , leanModuleTest LargeDependentRecord.generator 5
+    , leanModuleTest LargeIndexedDatatype.generator 5
+    , leanModuleTest LargeIndexedParameterisedDatatype.generator 5
+    , leanModuleTest LargeSimpleDatatype.generator 5
+    , leanModuleTest LargeSimpleRecord.generator 5
+    , leanModuleTest NestedLet.generator 5
+    , leanModuleTest NestedLetAdditions.generator 5
+    , leanModuleTest NestedLetFunctions.generator 5
+    , leanModuleTest Newlines.generator 5
+    , leanModuleTest RecordParameters.generator 5
+    , leanModuleTest SequentialDefinitions.generator 5
+    , leanModuleTest SequentialDependentRecords.generator 5
+    , leanModuleTest SequentialSimpleRecords.generator 5
+    , leanModuleTest SimpleDataDefinitions.generator 5
     ]
   ]
