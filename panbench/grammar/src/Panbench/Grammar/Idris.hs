@@ -99,12 +99,12 @@ instance Definition (IdrisDefn ann) (IdrisTmDefnLhs ann) (IdrisTm ann) where
   (UnAnnotatedCells tele :- UnAnnotatedCell (SingleCell _ nm _)) .= tm =
     -- Unclear if Idris supports unannotated top-level bindings?
     idrisDefn $
-    nest 4 (undoc nm <+> ":" <+> "_") <\>
-    nest 4 (undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc tm)
+    nest 2 (undoc nm <+> ":" <+> "_") <\>
+    nest 2 (undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc tm)
   (tele :- SingleCell _ nm tp) .= tm =
     idrisDefn $
-    nest 4 (undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore tp))) <\>
-    nest 4 (undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc tm)
+    nest 2 (undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore tp))) <\>
+    nest 2 (undoc nm <+> undoc (hsepMap (hsep . cellNames) tele) <+> "=" <\?> undoc tm)
 
 type IdrisPostulateDefnLhs ann = IdrisTelescope () Identity ann
 
@@ -125,7 +125,7 @@ instance DataDefinition (IdrisDefn ann) (IdrisDataDefnLhs ann) (IdrisRequiredCel
   -- It appears that Idris 2 does not support parameterised inductives?
   data_ (params :- RequiredCell _ nm tp) ctors =
     idrisDefn $
-    nest 4 $
+    nest 2 $
     "data" <+> undoc nm <+> ":" <+> undoc (pi params tp) <+> "where" <\>
       hardlinesFor ctors \(RequiredCell _ ctorNm ctorTp) ->
         -- We need to add the parameters as arguments, as Idris does not support parameterised inductives.
@@ -138,7 +138,7 @@ instance RecordDefinition (IdrisDefn ann) (IdrisRecordDefnLhs ann) (IdrisName an
   -- on a record definition.
   record_ (params :- (RequiredCell _ nm _)) ctor fields =
     idrisDefn $
-    nest 4 $
+    nest 2 $
     "record" <+> undoc nm <+> hsepMap idrisCell params <+> "where" <\>
       "constructor" <+> undoc ctor <\>
       hardlinesFor fields \(RequiredCell _ fieldNm fieldTp) ->
