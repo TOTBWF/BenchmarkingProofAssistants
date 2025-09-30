@@ -193,7 +193,7 @@ instance Pi (AgdaTm ann) (AgdaMultiCell AgdaVis ann) where
   pi args body = agdaCells args <> "→" <+> body
 
 instance App (AgdaTm ann) where
-  app fn args = foldl (<+>) fn args
+  app fn args = nest 2 $ group (vsep (fn:args))
 
 instance Underscore (AgdaTm ann) where
   underscore = "_"
