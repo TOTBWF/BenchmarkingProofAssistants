@@ -197,12 +197,9 @@ liftDoc2 f x y = coerce (f (coerce x) (coerce y))
 (<->) :: (IsDoc doc) => doc ann -> doc ann -> doc ann
 (<->) = liftDoc2 (<>)
 
--- | Concatenate two documents together with a 'softline'.
---
--- If @x <\?> y@ fits on the page, then this is the same
--- as @x <+> y@. Otherwise, this is the same as @x <\> y@.
+-- | Concatenate two documents together with a 'line'.
 (<\?>) :: (IsDoc doc) => doc ann -> doc ann -> doc ann
-(<\?>) x y = x <-> softline <-> y
+(<\?>) x y = x <-> line <-> y
 
 (<\>) :: (IsDoc doc) => doc ann -> doc ann -> doc ann
 (<\>) x y = x <-> hardline <-> y

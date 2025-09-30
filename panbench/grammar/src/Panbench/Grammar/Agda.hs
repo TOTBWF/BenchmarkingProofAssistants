@@ -159,12 +159,12 @@ type AgdaLetDefnLhs ann = AgdaTelescope () Maybe ann
 instance Definition (AgdaLet ann) (AgdaLetDefnLhs ann) (AgdaTm ann) where
   (UnAnnotatedCells tele :- UnAnnotatedCell (SingleCell _ nm _)) .= e =
     doc $
-    nest 4 (undoc nm <+> agdaCellNames tele <> "=" <\?> undoc e)
+    undoc nm <+> agdaCellNames tele <> "=" <> group (line <> undoc e)
   (tele :- SingleCell _ nm ann) .= e =
     doc $
     hardlines
     [ undoc nm <+> ":" <+> undoc (pi tele (fromMaybe underscore ann))
-    , undoc nm <+> agdaCellNames tele <> "=" <> line <> undoc e
+    , undoc nm <+> agdaCellNames tele <> "=" <> group (line <> undoc e)
     ]
 
 instance Let (AgdaLet ann) (AgdaTm ann) where
@@ -182,7 +182,7 @@ instance Name (AgdaTm ann) where
 
 instance Pi (AgdaTm ann) (AgdaMultiCell AgdaVis ann) where
   pi [] body = body
-  pi args body = agdaCells args <\?> "→" <+> body
+  pi args body = agdaCells args <> "→" <+> body
 
 instance App (AgdaTm ann) where
   app fn args = foldr (<+>) fn args
