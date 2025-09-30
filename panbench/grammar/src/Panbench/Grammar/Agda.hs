@@ -142,7 +142,7 @@ instance RecordDefinition (AgdaDefn ann) (AgdaRecordDefnLhs ann) (AgdaName ann) 
   record_ (params :- RequiredCell _ nm tp) ctor fields =
     agdaDefn $
     nest 2 $ hardlines
-    [ "record" <+> undoc nm <+> agdaCells params <+> ":" <+> undoc tp <+> "where"
+    [ "record" <+> undoc nm <+> agdaCells params <> ":" <+> undoc tp <+> "where"
     , "constructor" <+> undoc ctor
     , nest 2 $ hardlines
       [ "fields"
