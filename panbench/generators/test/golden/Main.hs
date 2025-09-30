@@ -2,12 +2,17 @@
 module Main where
 
 import Data.Text.IO.Utf8 as Utf8
+import Data.Text.Encoding as Utf8
 import Data.Text as T
+import Data.ByteString.Lazy as LBS
 
 import Panbench.Grammar.Agda
 
 import Panbench.Generator
+
+import Panbench.Generator.NestedLet qualified as NestedLet
 import Panbench.Generator.NestedLetAdditions qualified as NestedLetAdditions
+import Panbench.Generator.NestedLetFunctions qualified as NestedLetFunctions
 
 import System.Directory
 import System.FilePath
@@ -59,35 +64,21 @@ printTestForLang
   -- ^ The thing to print.
   -> TestTree
 printTestForLang langName printer fileExt base syn =
-  goldenVsFileDiff langName (\ref new -> ["diff", "--strip-trailing-cr" ,"-u", "--color=always", ref, new]) snapshotFile stagingFile do
+  -- We have to use @goldenVsStringDiff@ ourselves to avoid bad unicode decoding...
+  goldenVsStringDiff langName (\ref new -> ["diff", "--strip-trailing-cr" ,"-u", "--color=always", ref, new]) snapshotFile do
     createDirectoryIfMissing False ("test" </> "staging")
     createFile stagingFile
-    -- Data.Ext.IO.Utf8 always writes UTF-8, ignores the locale,
+    -- Data.Text.IO.Utf8 always writes UTF-8, ignores the locale,
     -- and does not do line ending conversion.
-    Utf8.writeFile stagingFile $ printer syn
+    let result = printer syn
+    Utf8.writeFile stagingFile result
+    pure (LBS.fromStrict $ Utf8.encodeUtf8 result)
   where
     stagingFile = stagingPath (base <.> fileExt)
     snapshotFile = snapshotPath (base <.> fileExt)
 
--- -- | Make a set of golden tests for a given module.
--- printModuleTestGroup
---   :: TestName
---   -- ^ The name of the test group.
---   -> String
---   -- ^ The base name to use for staging and snapshot files.
---   -> Module
---   -- ^ The abstract syntax of the module to print.
---   -> TestTree
--- printModuleTestGroup groupName base syn =
---   testGroup groupName
---   [ printTestForLang "Agda" Agda.render ".agda" base syn
---   , printTestForLang "Idris" Idris.render ".idr" base syn
---   , printTestForLang "Lean" Lean.render ".lean" base syn
---   , printTestForLang "Rocq" Rocq.render ".v" base syn
---   ]
-
 agdaModuleTest
-  :: GenModule size (Agda ()) (Agda ())
+  :: GenModule size (AgdaHeader ()) (AgdaDefn ())
   -> size
   -> TestTree
 agdaModuleTest gen size =
@@ -104,6 +95,8 @@ main :: IO ()
 main = defaultMain $
   testGroup "Golden"
   [ testGroup "Agda"
-    [ agdaModuleTest NestedLetAdditions.generator 5
+    [ agdaModuleTest NestedLet.generator 5
+    , agdaModuleTest NestedLetAdditions.generator 5
+    , agdaModuleTest NestedLetFunctions.generator 5
     ]
   ]
