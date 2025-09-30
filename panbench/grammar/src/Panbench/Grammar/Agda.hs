@@ -198,6 +198,9 @@ instance App (AgdaTm ann) where
 instance Underscore (AgdaTm ann) where
   underscore = "_"
 
+instance Parens (AgdaTm ann) where
+  parens = enclose "(" ")"
+
 instance Literal (AgdaTm ann) "Nat" Natural where
   mkLit = pretty
 

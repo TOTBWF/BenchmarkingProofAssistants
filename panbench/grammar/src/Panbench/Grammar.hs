@@ -270,6 +270,9 @@ letN size defn tm = let_ [ defn i | i <- [1..size] ] tm
 class Underscore tm where
   underscore :: tm
 
+class Parens tm where
+  parens :: tm -> tm
+
 --------------------------------------------------------------------------------
 -- Operators and Builtins
 
