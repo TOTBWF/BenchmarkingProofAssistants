@@ -50,6 +50,9 @@ instance (Default info, Applicative arity, Alternative ann) => Syn name (Cell in
 instance (Default info, Alternative ann) => Syns name (Cell info [] name ann tm) where
   syns nms = Cell def nms empty
 
+instance (Default info, Alternative arity, Applicative ann) => AnonChk tm (Cell info arity name ann tm) where
+  anonChk tm = Cell def empty (pure tm)
+
 --------------------------------------------------------------------------------
 -- Pattern Synonyms
 

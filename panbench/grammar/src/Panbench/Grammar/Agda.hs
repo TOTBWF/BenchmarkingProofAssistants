@@ -57,18 +57,20 @@ instance Default AgdaVis where
 
 type AgdaMultiCell info ann = MultiCell info (AgdaName ann) (AgdaTm ann)
 type AgdaSingleCell info ann = SingleCell info (AgdaName ann) (AgdaTm ann)
+type AgdaAnonCell info ann = Cell info Maybe (AgdaName ann) Maybe (AgdaTm ann)
 type AgdaRequiredCell info ann = Cell info Identity (AgdaName ann) Identity (AgdaTm ann)
 
 type AgdaTelescope hdInfo hdAnn docAnn = CellTelescope
    AgdaVis [] (AgdaName docAnn) Maybe (AgdaTm docAnn)
    hdInfo Identity (AgdaName docAnn) hdAnn (AgdaTm docAnn)
 
+instance Implicit (Cell AgdaVis arity nm ann tm) where
+  implicit cell = cell { cellInfo = Implicit }
 
 -- | Surround a document with the appropriate delimiters for a given 'Visibility'.
 agdaVis :: (IsDoc doc, IsString (doc ann)) => AgdaVis -> doc ann -> doc ann
 agdaVis Visible = enclose "(" ")"
 agdaVis Implicit = enclose "{" "}"
-
 
 -- | Render an Agda binding cell.
 --
@@ -181,7 +183,6 @@ instance Let (AgdaLet ann) (AgdaTm ann) where
     doc $
     "let" <+> nest 4 (hardlines (undocs defns)) <> line <> "in" <+> nest 3 (undoc e)
 
-
 --------------------------------------------------------------------------------
 -- Terms
 
@@ -191,6 +192,9 @@ instance Name (AgdaTm ann) where
 instance Pi (AgdaTm ann) (AgdaMultiCell AgdaVis ann) where
   pi [] body = body
   pi args body = agdaCells args <> "→" <+> body
+
+instance Arr (AgdaTm ann) (AgdaAnonCell AgdaVis ann) where
+  arr (Cell _ _ tp) body = fromMaybe underscore tp <+> "→" <+> body
 
 instance App (AgdaTm ann) where
   app fn args = nest 2 $ group (vsep (fn:args))

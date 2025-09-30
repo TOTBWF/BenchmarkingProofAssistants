@@ -232,7 +232,7 @@ class Pi tm cell | tm -> cell where
   pi :: [cell] -> tm -> tm
 
 class Arr tm cell | tm -> cell where
-  -- | Create a pi type over a @cell@.
+  -- | Create a non-dependent pi type over a @cell@.
   --
   -- See $binders for expected use.
   arr :: cell -> tm -> tm
