@@ -15,7 +15,66 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- | Tagless grammar for panbench.
-module Panbench.Grammar where
+module Panbench.Grammar
+  ( -- * Names
+    Name(..)
+    -- * Binding Cells
+    -- $binders
+    --
+    -- $bindingModifiers
+  , Chk(..)
+  , Chks(..)
+  , Syn(..)
+  , Syns(..)
+  , AnonChk(..)
+  , AnonSyn(..)
+  , (.:)
+  , (.:*)
+  , Implicit(..)
+    -- * Definitions
+    -- $definitions
+  , Definition(..)
+  , Postulate(..)
+  , DataDefinition(..)
+  , dataN_
+  , RecordDefinition(..)
+  , recordN_
+  , Newline(..)
+    -- * Left-hand sides
+    -- $leftHandSides
+  , TelescopeLhs(..)
+    -- * Terms
+  , Pi(..)
+  , Arr(..)
+  , App(..)
+  , appN
+  , Let(..)
+  , letN
+  , Underscore(..)
+  , Parens(..)
+    -- * Builtins
+    -- $builtins
+  , Builtin(..)
+  , builtin
+  , Constant
+  , constant
+  , Op1
+  , op1
+  , Op2
+  , op2
+    -- ** Literals
+  , Literal(..)
+  , lit
+  , nat
+  , list
+  , string
+    -- * Top-level modules
+  , Module(..)
+    -- * Imports
+  , Import(..)
+  , import_
+  )
+  where
 
 import Prelude hiding (pi)
 
@@ -46,6 +105,23 @@ class (IsString nm) => Name nm where
 -- Moreover, all the languages tend to have different overlapping supported
 -- sets of binding constructs. To handle this, we introduce a general langauge
 -- of *binding cells* and *binding modifiers* that act on said cell.
+--
+-- A *binding cell* is a gramatical form like @(x : A)@, @{x y z : B}@, or just @x@ that binds
+-- (potentially multiple) names. Binding cells clearly show up in things like telescopes for pi types,
+-- but also show up in more unexpected places. For instance, consider a local let definition like
+--
+-- @
+-- let x : Nat := ... in ...
+-- @
+--
+-- Here, the @x : Nat@ is secretly a binding cell! We opt to classify binding cells along two axes:
+--
+-- 1. The "arity" of the binding cell, which describes the number of names bound.
+--    This can be 0 in the case of "anonomyous" binders like @{Nat} → ...@, 1 as in @let@,
+--    or multiple as in @(x y z : A) → @
+-- 2. The "annotation" of the binding cell. This lets us distinguish between binding forms
+--    like @∀ x y z → ...@ which may not require a type annotation, and the required annotation
+--    on something like @data Foo : Set@.
 
 -- | An annotated single binding cell.
 class Chk nm tm cell | cell -> nm, cell -> tm where
@@ -99,7 +175,7 @@ class AnonSyn tm cell | cell -> tm where
 -- The other half of the binder API is *binding modifiers, which handle things
 -- like implicit arguments, class arguments, erasure, etc. Every sort of modifier
 -- has a class associated to it like 'Implicit', which provide an (possibly parameterized)
--- action @binder -> binder@.
+-- action @cell -> cell@.
 --
 -- On the user-facing side, writing a modified binder is as easy as
 --
@@ -107,7 +183,7 @@ class AnonSyn tm cell | cell -> tm where
 -- pi (implicit ("x" .: nat)) nat
 -- @
 --
--- Instances for @Binder@ and related classes will then have to delay the
+-- Instances for @Chk@ and related classes will then have to delay the
 -- decision on how to fully render the binder, which is why we provide the
 -- extra degree of freedom in classes like 'Pi'.
 
@@ -276,7 +352,7 @@ class Parens tm where
 --------------------------------------------------------------------------------
 -- Operators and Builtins
 
--- | Builtins
+-- $builtins
 --
 -- We want to be able to be polymorphic over the builtin-constructs of a language,
 -- *and* be able to separately dispatch on builtins when defining a language instance.
@@ -288,6 +364,7 @@ class Parens tm where
 -- In light of this, we define a single 'Builtin' class that lets us dispatch on a statically known
 -- 'Symbol'. We also allow the return type to vary, which lets us implement things like builtin infix operators
 -- in a natural way via @Builtin tm "+" (tm -> tm -> tm)@.
+
 class (KnownSymbol op) => Builtin (tm :: Type) (op :: Symbol) (tp :: Type) | tm op -> tp, op tp -> tm where
   -- | Make a builtin of a given type.
   --
@@ -317,9 +394,7 @@ type Op2 tm op = Builtin tm op (tm -> tm -> tm)
 op2 :: forall op -> Op2 tm op => tm -> tm -> tm
 op2 = builtin
 
--- | Literals
---
--- Literals work like 'Builtin', but with a slight twist.
+-- | Literals work like 'Builtin', but with a slight twist.
 -- Instead of a single @mkBuiltin :: tp@ method, the 'Literal' class
 -- has a single @mkLit :: tp -> tm@ method, which reflects that literals
 -- must always be built out of *something*. This also leads to marginally better inference.
@@ -348,19 +423,6 @@ string = lit "String"
 
 --------------------------------------------------------------------------------
 -- Top-level modules
-
--- $topLevel
---
--- Basic grammar is
---
--- @
--- module   := name hdr body
--- hdr      := (import | defn)*
--- body     := defn*
--- defn     := topLhs tm
--- topLhs   := topLhsHd cell*
--- topLhsHd := name tm?
--- @
 
 class (Monoid hdr, Monoid defn) => Module mod hdr defn | mod -> hdr, mod -> defn, hdr defn -> mod where
   -- | Construct a top-level module.
