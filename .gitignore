@@ -4,7 +4,7 @@
 **/*.ttm
 **/*.ibc
 **/dist-newstyle
-translators/test/staging/*
+panbench/generators/test/staging/*
 _build
 **/.clangd
 .DS_Store

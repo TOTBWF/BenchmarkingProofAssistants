@@ -1,9 +1,0 @@
-Module NewlineFile.
-
-
-
-
-
-
-
-End NewlineFile.

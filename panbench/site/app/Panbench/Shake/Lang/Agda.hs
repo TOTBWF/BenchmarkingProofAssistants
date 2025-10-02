@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
 -- | Helpers for installing @agda@.
 module Panbench.Shake.Lang.Agda
   ( -- $shakeAgdaInstall
