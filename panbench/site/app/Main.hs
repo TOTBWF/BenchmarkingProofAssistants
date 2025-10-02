@@ -9,6 +9,9 @@ import Numeric.Natural
 import System.Directory
 
 import Panbench.Grammar.Agda
+import Panbench.Grammar.Idris
+import Panbench.Grammar.Lean
+import Panbench.Grammar.Rocq
 
 import Panbench.Shake.Dev
 import Panbench.Shake.Chez
@@ -32,6 +35,9 @@ main = shakeArgs (shakeOptions {shakeFiles="_build"}) do
     needSite out
       [ BenchmarkMatrix "LetAddExample" [2^n | (n :: Natural) <- [0..4]]
         [ benchmarkMatrixRow (Agda String) NestedLetAdditions.generator
+        , benchmarkMatrixRow (Idris String) NestedLetAdditions.generator
+        , benchmarkMatrixRow (Lean String) NestedLetAdditions.generator
+        , benchmarkMatrixRow (Rocq String) NestedLetAdditions.generator
         ]
       ]
 

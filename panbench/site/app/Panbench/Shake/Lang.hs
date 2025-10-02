@@ -18,10 +18,18 @@ import Data.Traversable
 import Development.Shake
 
 import Panbench.Generator
+
 import Panbench.Grammar
 import Panbench.Grammar.Agda
+import Panbench.Grammar.Idris
+import Panbench.Grammar.Lean
+import Panbench.Grammar.Rocq
+
 import Panbench.Shake.File
 import Panbench.Shake.Lang.Agda
+import Panbench.Shake.Lang.Idris
+import Panbench.Shake.Lang.Lean
+import Panbench.Shake.Lang.Rocq
 
 import System.FilePath
 
@@ -95,7 +103,46 @@ instance ShakeLang (AgdaMod ann) (AgdaHeader ann) (AgdaDefn ann) (Agda ann) wher
     needAgda opts
   needModule gen size = do
     let path = generatorOutputDir "agda" (T.unpack (genName gen)) (show size) ".agda"
-    writeTextFileChanged path (genModuleVia getAgda size gen)
+    writeTextFileChanged path (genModuleVia getAgdaMod size gen)
     pure path
   defaultCheckArgs _ = agdaCheckDefaultArgs
   cleanBuildArtifacts _ dir = removeFilesAfter dir ["*.agdai"]
+
+instance ShakeLang (IdrisMod ann) (IdrisHeader ann) (IdrisDefn ann) (Idris ann) where
+  langName _ = "idris"
+  langExt _ = ".idr"
+  needLang _ = do
+    opts <- needIdrisInstallOpts
+    needIdris opts
+  needModule gen size = do
+    let path = generatorOutputDir "idris" (T.unpack (genName gen)) (show size) ".idr"
+    writeTextFileChanged path (genModuleVia getIdrisMod size gen)
+    pure path
+  defaultCheckArgs _ = idrisCheckDefaultArgs
+  cleanBuildArtifacts _ dir = removeFilesAfter (dir </> "build") ["*"]
+
+instance ShakeLang (LeanMod ann) (LeanHeader ann) (LeanDefn ann) (Lean ann) where
+  langName _ = "lean"
+  langExt _ = ".lean"
+  needLang _ = do
+    opts <- needLeanInstallOpts
+    needLean opts
+  needModule gen size = do
+    let path = generatorOutputDir "lean" (T.unpack (genName gen)) (show size) ".lean"
+    writeTextFileChanged path (genModuleVia getLeanMod size gen)
+    pure path
+  defaultCheckArgs _ = leanCheckDefaultArgs
+  cleanBuildArtifacts _ _ = pure ()
+
+instance ShakeLang (RocqMod ann) (RocqHeader ann) (RocqDefn ann) (Rocq ann) where
+  langName _ = "rocq"
+  langExt _ = ".v"
+  needLang _ = do
+    opts <- needRocqInstallOpts
+    needRocq opts
+  needModule gen size = do
+    let path = generatorOutputDir "rocq" (T.unpack (genName gen)) (show size) ".v"
+    writeTextFileChanged path (genModuleVia getRocqMod size gen)
+    pure path
+  defaultCheckArgs _ = rocqCheckDefaultArgs
+  cleanBuildArtifacts _ dir = removeFilesAfter dir ["*.vo", "*.vok", "*.vos", "*.glob"]
