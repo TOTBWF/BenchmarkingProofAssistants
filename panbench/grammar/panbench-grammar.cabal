@@ -27,7 +27,6 @@ common extensions
 library
     import: warnings, extensions
     exposed-modules:  
-        Grammar,
         Panbench.Data.List.Bwd,
         Panbench.Grammar,
         Panbench.Grammar.Agda,
@@ -35,15 +34,8 @@ library
         Panbench.Grammar.Rocq,
         Panbench.Grammar.Idris,
         Panbench.Grammar.Lean,
-        Panbench.Lang,
         Panbench.Pretty,
         Panbench,
-        Print.Generic,
-        Print.Agda, 
-        Print.Idris, 
-        Print.Lean, 
-        Print.Rocq,
-        Tests
     build-depends:
         base >=4.17.2.0,
         aeson >= 2.2,
