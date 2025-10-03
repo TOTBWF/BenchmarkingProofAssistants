@@ -23,8 +23,8 @@ concurrency:
 
 env:
   os: ubuntu-latest
-  ghc-version: '9.4.8'
-  cabal-version: '3.12.1.0'
+  ghc-version: '9.12.2'
+  cabal-version: '3.14.2.0'
   # Note that this version of ocaml is only used to be able to compile
   # other versions of ocaml when we set up local switches.
   ocaml-version: 'ocaml-variants.4.14.2+options,ocaml-option-flambda'
