@@ -1,0 +1,58 @@
+# Simple workflow for deploying static content to GitHub Pages
+name: Publish static site
+
+on:
+  # Runs once we've build the static site on main.
+  workflow_run:
+    workflows: ["Build static site"]
+    branches: ["main"]
+    types:
+      - completed
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+env:
+  os: ubuntu-latest
+  ghc-version: '9.12.2'
+  cabal-version: '3.14.2.0'
+  # Note that this version of ocaml is only used to be able to compile
+  # other versions of ocaml when we set up local switches.
+  ocaml-version: 'ocaml-variants.4.14.2+options,ocaml-option-flambda'
+
+jobs:
+  # Single deploy job since we're just deploying
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Setup Pages 📖
+        uses: actions/configure-pages@v5
+
+      - name: Download latest build of site ⬇️
+        uses: actions/download-artifact@v5
+        with:
+          name: 'static-site'
+          path: 'site'
+
+      - name: Upload site ⬆️
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Upload entire repository
+          path: 'site'
+
+      - name: Deploy to GitHub Pages 📖
+        id: deployment
+        uses: actions/deploy-pages@v4
