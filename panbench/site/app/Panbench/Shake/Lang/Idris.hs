@@ -98,29 +98,39 @@ needIdrisInstallOpts = do
   idrisInstallScheme <- needIdrisInstallScheme
   pure IdrisQ {..}
 
+-- | Run a command with access to a Idris 2 git worktree.
+withIdrisWorktree
+  :: String -- ^ Revision of Idris 2 to check out.
+  -> FilePath -- ^ Store directory.
+  -> (FilePath -> Action a) -- ^ Action, parameterized by the worktree directory.
+  -> Action a
+withIdrisWorktree rev storeDir act =
+  let repoDir = "_build/repos/idris2"
+      workDir = replaceDirectory storeDir "_build/repos"
+      worktree = GitWorktreeQ
+        { gitWorktreeUpstream = "https://github.com/idris-lang/Idris2.git"
+        , gitWorktreeRepo = repoDir
+        , gitWorktreeDir = workDir
+        , gitWorktreeRev = rev
+        }
+  in withGitWorktree worktree (act workDir)
+
 -- | Oracle for installing a version of Idris 2.
 idrisInstall :: IdrisQ -> FilePath -> Action ()
 idrisInstall IdrisQ{..} storeDir = do
-  let repoDir = "_build/repos/idris2"
-  let workDir = replaceDirectory storeDir "_build/repos"
-  needGitWorktree $ GitWorktreeQ
-    { gitWorktreeUpstream = "https://github.com/idris-lang/Idris2.git"
-    , gitWorktreeRepo = repoDir
-    , gitWorktreeDir = workDir
-    , gitWorktreeRev = idrisInstallRev
-    }
-  withAllCores \nCores -> do
-    -- [FIXME: Reed M, 21/07/2025] @make bootstrap@ removes compiled lib files,
-    -- which can cause some pointless rebuilds if we delete the store. We should
-    -- investigate if there is a way to fix this.
-    case idrisInstallScheme of
-      Chez -> do
-        chez <- needChez
-        makeCommand_ [Cwd workDir, AddEnv "SCHEME" chez] ["bootstrap", "-j" ++ show nCores]
-        makeCommand_ [Cwd workDir, AddEnv "PREFIX" storeDir] ["install", "-j" ++ show nCores]
-      Racket -> do
-        makeCommand_ [Cwd workDir] ["bootstrap-racket", "-j" ++ show nCores]
-        makeCommand_ [Cwd workDir, AddEnv "PREFIX" storeDir, AddEnv "IDRIS2_CG" "racket"] ["install", "-j" ++ show nCores]
+  withIdrisWorktree idrisInstallRev storeDir \workDir -> do
+    withAllCores \nCores -> do
+      -- [FIXME: Reed M, 21/07/2025] @make bootstrap@ removes compiled lib files,
+      -- which can cause some pointless rebuilds if we delete the store. We should
+      -- investigate if there is a way to fix this.
+      case idrisInstallScheme of
+        Chez -> do
+          chez <- needChez
+          makeCommand_ [Cwd workDir, AddEnv "SCHEME" chez] ["bootstrap", "-j" ++ show nCores]
+          makeCommand_ [Cwd workDir, AddEnv "PREFIX" storeDir] ["install", "-j" ++ show nCores]
+        Racket -> do
+          makeCommand_ [Cwd workDir] ["bootstrap-racket", "-j" ++ show nCores]
+          makeCommand_ [Cwd workDir, AddEnv "PREFIX" storeDir, AddEnv "IDRIS2_CG" "racket"] ["install", "-j" ++ show nCores]
 
 -- | Require that a particular version of @idris2@ is installed,
 -- and return the absolute path pointing to the executable.

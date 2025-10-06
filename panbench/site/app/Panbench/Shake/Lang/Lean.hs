@@ -93,23 +93,33 @@ needLeanInstallOpts = do
   leanMakeFlags <- needLeanMakeFlags
   pure LeanQ {..}
 
+-- | Run a command with access to a Lean 4 git worktree.
+withLeanWorktree
+  :: String -- ^ Revision of Lean 4 to check out.
+  -> FilePath -- ^ Store directory.
+  -> (FilePath -> Action a) -- ^ Action, parameterized by the worktree directory.
+  -> Action a
+withLeanWorktree rev storeDir act =
+  let repoDir = "_build/repos/lean"
+      workDir = replaceDirectory storeDir "_build/repos"
+      worktree = GitWorktreeQ
+        { gitWorktreeUpstream = "https://github.com/leanprover/lean4.git"
+        , gitWorktreeRepo = repoDir
+        , gitWorktreeDir = workDir
+        , gitWorktreeRev = rev
+        }
+  in withGitWorktree worktree (act workDir)
+
 -- | Oracle for installing a version of Lean 4.
 --
 -- The oracle returns the absolute path to the produced @lean@ binary.
 leanInstall :: LeanQ -> FilePath -> Action ()
 leanInstall LeanQ{..} storeDir = do
-  let repoDir = "_build/repos/lean"
-  let workDir = replaceDirectory storeDir "_build/repos"
-  needGitWorktree $ GitWorktreeQ
-    { gitWorktreeUpstream = "https://github.com/leanprover/lean4.git"
-    , gitWorktreeRepo = repoDir
-    , gitWorktreeDir = workDir
-    , gitWorktreeRev = leanInstallRev
-    }
-  withAllCores \nCores -> do
-    command_ [Cwd workDir] "cmake" leanCMakeFlags
-    command_ [Cwd workDir] "make" (["stage3", "-C", "build/release", "-j" ++ show nCores] ++ leanMakeFlags)
-  copyDirectoryRecursive (workDir </> "build" </> "release" </> "stage3") storeDir
+    withLeanWorktree leanInstallRev storeDir \workDir -> do
+      withAllCores \nCores -> do
+        command_ [Cwd workDir] "cmake" leanCMakeFlags
+        command_ [Cwd workDir] "make" (["stage3", "-C", "build/release", "-j" ++ show nCores] ++ leanMakeFlags)
+      copyDirectoryRecursive (workDir </> "build" </> "release" </> "stage3") storeDir
 
 -- | Require that a particular version of @lean@ is installed,
 -- and return the absolute path pointing to the executable.
