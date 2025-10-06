@@ -91,29 +91,39 @@ needAgdaInstallOpts = do
   agdaInstallFlags <- needAgdaInstallFlags
   pure AgdaQ {..}
 
+-- | Run a command with access to a Agda git worktree.
+withAgdaWorktree
+  :: String -- ^ Revision of Agda to check out.
+  -> FilePath -- ^ Store directory.
+  -> (FilePath -> Action a) -- ^ Action, parameterized by the worktree directory.
+  -> Action a
+withAgdaWorktree rev storeDir act =
+  let repoDir = "_build/repos/agda"
+      workDir = replaceDirectory storeDir "_build/repos"
+      worktree = GitWorktreeQ
+        { gitWorktreeUpstream = "https://github.com/agda/agda.git"
+        , gitWorktreeRepo = repoDir
+        , gitWorktreeDir = workDir
+        , gitWorktreeRev = rev
+        }
+  in withGitWorktree worktree (act workDir)
+
 -- | Oracle for installing a version of Agda.
 --
 -- The oracle returns the absolute path to the produced @agda@ binary.
 agdaInstall :: AgdaQ -> FilePath -> Action ()
 agdaInstall AgdaQ{..} storeDir = do
-  let repoDir = "_build/repos/agda"
-  let workDir = replaceDirectory storeDir "_build/repos"
-  needGitWorktree $ GitWorktreeQ
-    { gitWorktreeUpstream = "https://github.com/agda/agda.git"
-    , gitWorktreeRepo = repoDir
-    , gitWorktreeDir = workDir
-    , gitWorktreeRev = agdaInstallRev
-    }
-  -- [TODO: Reed M, 14/07/2025] We could be more reproducible by allowing the
-  -- user to specify a cabal lockfile.
-  --
-  -- Note that this also uses the system GHC: we could make this more configurable by
-  -- calling out to @ghcup@, but let's just get things working for now
-  withAllCores \nCores -> do
-    command_ [Cwd workDir] "cabal" (["build", "agda", "--project-dir=.", "--jobs=" ++ show nCores] ++ agdaInstallFlags)
-  Stdout listBinOut <- command [Cwd workDir] "cabal" (["list-bin", "agda", "--project-dir=."] ++ agdaInstallFlags)
-  let outDir = takeDirectory $ takeWhile (not . isSpace) listBinOut
-  copyDirectoryRecursive outDir storeDir
+  withAgdaWorktree agdaInstallRev storeDir \workDir -> do
+    -- [TODO: Reed M, 14/07/2025] We could be more reproducible by allowing the
+    -- user to specify a cabal lockfile.
+    --
+    -- Note that this also uses the system GHC: we could make this more configurable by
+    -- calling out to @ghcup@, but let's just get things working for now
+    withAllCores \nCores -> do
+      command_ [Cwd workDir] "cabal" (["build", "agda", "--project-dir=.", "--jobs=" ++ show nCores] ++ agdaInstallFlags)
+    Stdout listBinOut <- command [Cwd workDir] "cabal" (["list-bin", "agda", "--project-dir=."] ++ agdaInstallFlags)
+    let outDir = takeDirectory $ takeWhile (not . isSpace) listBinOut
+    copyDirectoryRecursive outDir storeDir
 
 -- | Require that a particular version of @agda@ is installed,
 -- and return the absolute path pointing to the executable.

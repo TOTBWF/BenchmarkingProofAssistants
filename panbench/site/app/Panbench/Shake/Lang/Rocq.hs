@@ -78,26 +78,36 @@ needRocqInstallOpts = do
   rocqOcamlCompiler <- needRocqInstallOcaml
   pure RocqQ {..}
 
+-- | Run a command with access to a Rocq git worktree.
+withRocqWorktree
+  :: String -- ^ Revision of Rocq to check out.
+  -> FilePath -- ^ Store directory.
+  -> (FilePath -> Action a) -- ^ Action, parameterized by the worktree directory.
+  -> Action a
+withRocqWorktree rev storeDir act =
+  let repoDir = "_build/repos/rocq"
+      workDir = replaceDirectory storeDir "_build/repos"
+      worktree = GitWorktreeQ
+        { gitWorktreeUpstream = "https://github.com/rocq-prover/rocq.git"
+        , gitWorktreeRepo = repoDir
+        , gitWorktreeDir = workDir
+        , gitWorktreeRev = rev
+        }
+  in withGitWorktree worktree (act workDir)
+
 -- | Oracle for installing a version of @rocq@.
 rocqInstallOracle :: RocqQ -> FilePath -> Action ()
 rocqInstallOracle RocqQ{..} storeDir = do
-  let repoDir = "_build/repos/rocq"
-  let workDir = replaceDirectory storeDir "_build/repos"
-  needGitWorktree $ GitWorktreeQ
-    { gitWorktreeUpstream = "https://github.com/rocq-prover/rocq.git"
-    , gitWorktreeRepo = repoDir
-    , gitWorktreeDir = workDir
-    , gitWorktreeRev = rocqInstallRev
-    }
-  let rocqSwitchPkgs = intercalate "," [rocqOcamlCompiler, "dune", "ocamlfind", "zarith"]
-  withOpamSwitch (LocalSwitch workDir) ["--packages=" ++ rocqSwitchPkgs, "--no-install"] \opamEnv -> do
-    command_ (opamEnvOpts opamEnv) "./configure" ["-prefix", storeDir]
-    makeCommand_ (opamEnvOpts opamEnv) ["dunestrap"]
-    -- We need to use @NJOBS@ over @-j@, see @dev/doc/build-system.dune.md@ for details.
-    -- Moreover, note that -p implies --release!
-    withAllCores \nCores ->
-      duneCommand_ opamEnv [AddEnv "NJOBS" (show nCores)] ["build", "-p", "rocq-runtime,coq-core,rocq-core,coq"]
-    duneCommand_ opamEnv [] ["install", "--prefix=" ++ storeDir, "rocq-runtime", "coq-core", "rocq-core", "coq"]
+  withRocqWorktree rocqInstallRev storeDir \workDir -> do
+    let rocqSwitchPkgs = intercalate "," [rocqOcamlCompiler, "dune", "ocamlfind", "zarith"]
+    withOpamSwitch (LocalSwitch workDir) ["--packages=" ++ rocqSwitchPkgs, "--no-install"] \opamEnv -> do
+      command_ (opamEnvOpts opamEnv) "./configure" ["-prefix", storeDir]
+      makeCommand_ (opamEnvOpts opamEnv) ["dunestrap"]
+      -- We need to use @NJOBS@ over @-j@, see @dev/doc/build-system.dune.md@ for details.
+      -- Moreover, note that -p implies --release!
+      withAllCores \nCores ->
+        duneCommand_ opamEnv [AddEnv "NJOBS" (show nCores)] ["build", "-p", "rocq-runtime,coq-core,rocq-core,coq"]
+      duneCommand_ opamEnv [] ["install", "--prefix=" ++ storeDir, "rocq-runtime", "coq-core", "rocq-core", "coq"]
 
 -- | Require that a particular version of @rocq@ is installed,
 -- and return the absolute path pointing to the executable.
