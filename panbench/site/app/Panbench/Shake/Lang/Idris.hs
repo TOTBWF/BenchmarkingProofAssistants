@@ -187,7 +187,7 @@ idrisDoctor idris = do
       , "main : IO ()"
       , "main = putStrLn \"\""
       ]
-    idrisCheck [Cwd dir] idris testFile
+    idrisCheck [Cwd dir] idris "Test.idr"
 
 -- | Docs for the @install-idris@ rule.
 idrisDoctorDocs :: String
