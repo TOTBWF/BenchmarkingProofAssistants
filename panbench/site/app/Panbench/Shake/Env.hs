@@ -1,10 +1,12 @@
 -- | Shake utilities for interacting with environment variables.
 module Panbench.Shake.Env
-  ( -- $shakePath
+  ( -- * Path-related queries
     askPath
   , diffPathPrefix
   , diffPathSuffix
-  -- $shakePathRules
+    -- * Environment variables
+  , askEnvironment
+    -- * Shake Rules
   , envRules
   ) where
 
@@ -16,9 +18,8 @@ import GHC.Generics
 import System.Environment qualified as Env
 import System.FilePath
 
--- * Path-related queries
---
--- $shakePath
+--------------------------------------------------------------------------------
+-- Path-related queries
 
 -- | Shake query for getting the path.
 data PathQ = PathQ
@@ -34,7 +35,7 @@ askPath = askOracle PathQ
 -- | @diffPathPrefix new old@ returns a list of @$PATH@ entries
 -- that were newly added to the front of @$PATH@.
 diffPathPrefix :: [String] -> [String] -> [String]
-diffPathPrefix [] olds = []
+diffPathPrefix [] _ = []
 diffPathPrefix news [] = news
 diffPathPrefix (new:news) (old:olds)
   | new == old = []
@@ -45,13 +46,27 @@ diffPathPrefix (new:news) (old:olds)
 diffPathSuffix :: [String] -> [String] -> [String]
 diffPathSuffix news olds = reverse (diffPathPrefix (reverse news) (reverse olds))
 
--- * Shake Rules
---
--- $shakePathRules
+--------------------------------------------------------------------------------
+-- Environment variables
+
+-- | Shake query for getting environment variables.
+data EnvQ = EnvQ
+  deriving stock (Eq, Ord, Show, Generic)
+  deriving anyclass (Hashable, Binary, NFData)
+
+type instance RuleResult EnvQ = [(String, String)]
+
+-- | Get all environment variables.
+askEnvironment :: Action [(String, String)]
+askEnvironment = askOracle EnvQ
+
+--------------------------------------------------------------------------------
+-- Shake rules
 
 envRules :: Rules ()
 envRules = do
-  _ <- addOracle \PathQ -> liftIO do
+  _ <- addOracleHash \PathQ -> liftIO do
     path <- Env.getEnv "PATH"
     pure $ splitSearchPath path
+  _ <- addOracleHash \EnvQ -> liftIO $ Env.getEnvironment
   pure ()

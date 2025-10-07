@@ -1,13 +1,19 @@
 {-# LANGUAGE CApiFFI #-}
 module Panbench.Shake.Benchmark
-  ( -- $ shakeBench
-    benchmark
-  , BenchmarkExecStats(..)
+  ( -- * Benchmarking tools
+    BenchmarkExecStats(..)
+  , benchmark
+  , benchmarkCommand
   ) where
 
 import Data.Aeson
+import Data.Foldable
+import Data.Functor
 import Data.Int
+import Data.Map (Map)
+import Data.Map.Strict qualified as Map
 
+import Development.Shake
 import Development.Shake.Classes (Hashable, Binary, NFData)
 
 import Foreign.C
@@ -19,11 +25,12 @@ import Foreign.Storable
 
 import GHC.Generics
 
-import System.Directory
+import System.Directory qualified as Dir
 
--- * Benchmarking tools
---
--- $shakeBench
+import Panbench.Shake.Env
+
+--------------------------------------------------------------------------------
+-- Benchmarking tools
 
 -- | Benchmarking statistics gathered by @benchmark@.
 data BenchmarkExecStats = BenchmarkExecStats
@@ -75,7 +82,7 @@ foreign import capi "benchmark.h c_benchmark" c_benchmark :: CString -> Ptr CStr
 -- For documentation on benchmarking statistics gathered, see @BenchmarkExecStats@.
 benchmark :: FilePath -> [String] -> [(String, String)] -> FilePath -> IO BenchmarkExecStats
 benchmark path args env workingDir =
-  withCurrentDirectory workingDir do
+  Dir.withCurrentDirectory workingDir do
     p <- malloc
     r <-
       withCString path \cpath ->
@@ -89,3 +96,47 @@ benchmark path args env workingDir =
     else
       peek p
 {-# NOINLINE benchmark #-}
+
+-- | Benchmark command options.
+--
+-- Used in 'benchmarkCommand' when coalescing command options.
+data BenchmarkCmdOpts = BenchmarkCmdOpts
+  { benchEnvVars :: Map String String
+  , benchCwd :: FilePath
+  , benchPath :: [String]
+  }
+
+-- | A 'command_'-esque interface to 'benchmark'.
+--
+-- Options are processed left-to-right. Supported options are:
+-- * 'Cwd', which sets the current working directory. Defaults to @_build@.
+-- * 'Env', which sets the environment. This clobbers all existing environment variables.
+-- * 'AddEnv', which adds an environment variable. This clobbers existing values for that variable.
+-- * 'RemEnv', which removes an environment variable. If the variable is not present, this is a no-op.
+-- * 'AddPath', which adds paths to the prefix and suffix of the path.
+--
+-- The defaults for the environment and path are taken from the shake process.
+benchmarkCommand :: [CmdOption] -> FilePath -> [String] -> Action BenchmarkExecStats
+benchmarkCommand opts bin args = do
+  path <- askPath
+  envVars <- askEnvironment
+  let initBench = BenchmarkCmdOpts
+        { benchEnvVars = Map.fromList envVars
+        , benchCwd = "_build"
+        , benchPath = path
+        }
+  BenchmarkCmdOpts{..} <- foldlM handleOpt initBench opts
+  liftIO (Dir.findFile benchPath bin) >>= \case
+    Just absBin -> liftIO $ benchmark absBin args (Map.toList(benchEnvVars)) benchCwd
+    Nothing -> fail $ unlines $
+        [ "benchmarkCommand: could not locate " <> bin <> " in PATH."
+        , "The current PATH is:"
+        ] ++ path
+  where
+    handleOpt :: BenchmarkCmdOpts -> CmdOption -> Action BenchmarkCmdOpts
+    handleOpt bench (Cwd dir) = pure $ bench { benchCwd = dir }
+    handleOpt bench (Env envVars) = pure $ bench { benchEnvVars = Map.fromList envVars }
+    handleOpt bench (AddEnv var val) = pure $ bench { benchEnvVars = Map.insert var val (benchEnvVars bench) }
+    handleOpt bench (RemEnv var) = pure $ bench { benchEnvVars = Map.delete var (benchEnvVars bench) }
+    handleOpt bench (AddPath pfx sfx) = pure $ bench { benchPath = pfx ++ benchPath bench ++ sfx }
+    handleOpt bench cmdOpt = putWarn ("Unsupported option " <> show cmdOpt <> " to benchmarkCommand, ignoring.") $> bench

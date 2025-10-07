@@ -1,8 +1,9 @@
-{-# LANGUAGE RequiredTypeArguments #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RequiredTypeArguments #-}
+{-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE TypeOperators #-}
 -- | @shake@ build rules for @panbench@ modules.
 module Panbench.Shake.Lang
   ( -- * Shake rules for languages
@@ -25,6 +26,7 @@ import Panbench.Grammar.Idris
 import Panbench.Grammar.Lean
 import Panbench.Grammar.Rocq
 
+import Panbench.Shake.Benchmark
 import Panbench.Shake.File
 import Panbench.Shake.Lang.Agda
 import Panbench.Shake.Lang.Idris
@@ -36,6 +38,9 @@ import System.FilePath
 -- | Rules for installing, building, and cleaning files
 -- for a given language
 class (Module m hdr defn) => ShakeLang m hdr defn rep | m -> rep, rep -> m where
+  -- Cannot be injective, as our binary types aren't indexed by an @ann@ type parameter.
+  type Bin rep
+
   -- | User-facing name of the language.
   langName :: forall rep' -> (rep ~ rep') => String
 
@@ -47,7 +52,7 @@ class (Module m hdr defn) => ShakeLang m hdr defn rep | m -> rep, rep -> m where
   -- We use @forall rep' -> (rep ~ rep') => Action FilePath@
   -- so that 'needLang' can be called with an explicit type
   -- argument like @needLang Agda@.
-  needLang :: forall rep' -> (rep ~ rep') => Action FilePath
+  needLang :: forall rep' -> (rep ~ rep') => Action (Bin rep)
 
   -- | Require that a module described by a 'Gen' get built.
   -- This should return an absolute filepath.
@@ -56,8 +61,8 @@ class (Module m hdr defn) => ShakeLang m hdr defn rep | m -> rep, rep -> m where
   -- | Clean all build artifacts for a language in the given directory.
   cleanBuildArtifacts :: forall rep' -> (rep ~ rep') => FilePath -> Action ()
 
-  -- | Get the default arguments used to check a file for a language.
-  defaultCheckArgs :: forall rep' -> (rep ~ rep') => FilePath -> [String]
+  -- | Create a benchmarking command for a language.
+  benchmarkModule :: forall rep' -> (rep ~ rep') => [CmdOption] -> Bin rep -> FilePath -> Action BenchmarkExecStats
 
 -- | Existential for 'GenModule' that packs up evidence that we
 -- actually know how generate and typecheck the module.
@@ -96,6 +101,7 @@ needModules gens =
 -- Instances
 
 instance ShakeLang (AgdaMod ann) (AgdaHeader ann) (AgdaDefn ann) (Agda ann) where
+  type Bin (Agda ann) = AgdaBin
   langName _ = "agda"
   langExt _ = ".agda"
   needLang _ = do
@@ -105,10 +111,11 @@ instance ShakeLang (AgdaMod ann) (AgdaHeader ann) (AgdaDefn ann) (Agda ann) wher
     let path = generatorOutputDir "agda" (T.unpack (genName gen)) (show size) ".agda"
     writeTextFileChanged path (genModuleVia getAgdaMod size gen)
     pure path
-  defaultCheckArgs _ = agdaCheckDefaultArgs
+  benchmarkModule _ = agdaCheckBench
   cleanBuildArtifacts _ dir = removeFilesAfter dir ["*.agdai"]
 
 instance ShakeLang (IdrisMod ann) (IdrisHeader ann) (IdrisDefn ann) (Idris ann) where
+  type Bin (Idris ann) = IdrisBin
   langName _ = "idris"
   langExt _ = ".idr"
   needLang _ = do
@@ -118,10 +125,11 @@ instance ShakeLang (IdrisMod ann) (IdrisHeader ann) (IdrisDefn ann) (Idris ann) 
     let path = generatorOutputDir "idris" (T.unpack (genName gen)) (show size) ".idr"
     writeTextFileChanged path (genModuleVia getIdrisMod size gen)
     pure path
-  defaultCheckArgs _ = idrisCheckDefaultArgs
+  benchmarkModule _ = idrisCheckBench
   cleanBuildArtifacts _ dir = removeFilesAfter (dir </> "build") ["*"]
 
 instance ShakeLang (LeanMod ann) (LeanHeader ann) (LeanDefn ann) (Lean ann) where
+  type Bin (Lean ann) = LeanBin
   langName _ = "lean"
   langExt _ = ".lean"
   needLang _ = do
@@ -131,10 +139,11 @@ instance ShakeLang (LeanMod ann) (LeanHeader ann) (LeanDefn ann) (Lean ann) wher
     let path = generatorOutputDir "lean" (T.unpack (genName gen)) (show size) ".lean"
     writeTextFileChanged path (genModuleVia getLeanMod size gen)
     pure path
-  defaultCheckArgs _ = leanCheckDefaultArgs
+  benchmarkModule _ = leanCheckBench
   cleanBuildArtifacts _ _ = pure ()
 
 instance ShakeLang (RocqMod ann) (RocqHeader ann) (RocqDefn ann) (Rocq ann) where
+  type Bin (Rocq ann) = RocqBin
   langName _ = "rocq"
   langExt _ = ".v"
   needLang _ = do
@@ -144,5 +153,5 @@ instance ShakeLang (RocqMod ann) (RocqHeader ann) (RocqDefn ann) (Rocq ann) wher
     let path = generatorOutputDir "rocq" (T.unpack (genName gen)) (show size) ".v"
     writeTextFileChanged path (genModuleVia getRocqMod size gen)
     pure path
-  defaultCheckArgs _ = rocqCheckDefaultArgs
+  benchmarkModule _ = rocqCheckBench
   cleanBuildArtifacts _ dir = removeFilesAfter dir ["*.vo", "*.vok", "*.vos", "*.glob"]

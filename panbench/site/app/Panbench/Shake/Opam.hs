@@ -1,31 +1,31 @@
 -- | Shake helpers for working with @opam@.
 module Panbench.Shake.Opam
   (
-  -- $shakeOpamCmd
+    -- * Opam Commands
     OpamA(..)
   , needOpam
   , opamCommand
   , opamCommand_
-  -- $shakeOpamEnv
+    -- ** Opam Env
   , OpamEnvQ(..)
   , OpamEnvA(..)
   , opamEnvOpts
   , askOpamEnv
-  -- $shakeOpamSwitch
+    -- ** Opam Switch
   , OpamSwitch(..)
   , needOpamSwitch
   , withOpamSwitch
-  -- $shakeOpamInstall
+    -- ** Opam Install
   , askOpamVersions
   , needOpamInstall
   , needsOpamInstall
   , needsOpamInstall_
-  -- $shakeDune
+    -- * Dune
   , needDune
   , askDuneVersion
   , duneCommand
   , duneCommand_
-  -- $shakeOpamRules
+    -- * Shake Rules
   , opamRules
   ) where
 
@@ -53,9 +53,8 @@ import System.FilePath
 
 import Text.ParserCombinators.ReadP
 
--- * Running Opam Commands
---
--- $shakeOpamCmd
+--------------------------------------------------------------------------------
+-- Opam Commands
 
 -- | Find a version of @opam@ on the system path.
 data OpamQ = OpamQ
@@ -84,13 +83,15 @@ needOpam = opamBinPath <$> askOracle OpamQ
 opamCommand :: (HasCallStack, CmdResult r) => [CmdOption] -> [String] -> Action r
 opamCommand opts args = do
   opam <- needOpam
-  command opts opam (args ++ ["--yes"])
+  putInfo $ "# opam " ++ unwords args
+  quietly $ command opts opam (args ++ ["--yes"])
 
 -- | Run an @opam@ command, and ignore the results.
 opamCommand_ :: (HasCallStack) => [CmdOption] -> [String] -> Action ()
 opamCommand_ opts args = do
   opam <- needOpam
-  command_ opts opam (args ++ ["--yes"])
+  putInfo $ "# opam " ++ unwords args
+  quietly $ command_ opts opam (args ++ ["--yes"])
 
 -- | Shake oracle for finding the @opam@ binary.
 findOpamCommandOracle :: OpamQ -> Action OpamA
@@ -106,9 +107,8 @@ findOpamCommandOracle OpamQ =
       opamDigest <- fileDigest opamBinPath
       pure OpamA {..}
 
--- * Opam Env
---
--- $shakeOpamEnv
+--------------------------------------------------------------------------------
+-- Opam Env
 
 -- | Shake query for getting the @opam@ environment of a switch.
 newtype OpamEnvQ = OpamEnvQ OpamSwitch
@@ -162,18 +162,26 @@ parseOpamEnv opamEnvSwitch envStr = do
     parseEnvVars envStr (List xs) = traverse (parseEnvVar envStr) xs
     parseEnvVars envStr _ = parseFail envStr
 
+-- | Print an opam environment.
+putVerboseOpamEnv :: OpamEnvA -> Action ()
+putVerboseOpamEnv OpamEnvA{..} =
+  putVerbose $
+  unlines
+  [ "# opam environment for " <> opamSwitchName opamEnvSwitch
+  , "  path prefix: " <> intercalate ":" opamEnvPathPrefix
+  , "  path suffix: " <> intercalate ":" opamEnvPathSuffix
+  , "  env vars:"
+  , unlines $ fmap (\(var, val) -> "    " <> var <> "=" <> val) opamEnvVars
+  ]
+
 -- | Shake oracle for @opam env@ queries.
 opamEnvOracle :: OpamEnvQ -> Action OpamEnvA
-opamEnvOracle (OpamEnvQ switch@(NamedSwitch name)) = do
-  Stdout envOut <- opamCommand [AddEnv "OPAMSWITCH" name] ["env", "--sexp"]
-  parseOpamEnv switch envOut
-opamEnvOracle (OpamEnvQ switch@(LocalSwitch dir)) = do
-  Stdout envOut <- opamCommand [Cwd dir] ["env", "--sexp"]
+opamEnvOracle (OpamEnvQ switch) = do
+  Stdout envOut <- opamCommand [AddEnv "OPAMSWITCH" (opamSwitchName switch)] ["env", "--sexp"]
   parseOpamEnv switch envOut
 
--- * Opam Switches
---
--- $shakeOpamSwitch
+--------------------------------------------------------------------------------
+-- Opam Switches
 
 -- | An opam switch.
 data OpamSwitch
@@ -183,6 +191,13 @@ data OpamSwitch
   -- ^ A named opam switch.
   deriving stock (Show, Eq, Ord, Generic)
   deriving anyclass (Hashable, Binary, NFData)
+
+-- | Get the name of an @opam@ switch.
+--
+-- If the switch is a local switch, the name is the absolute path of the switch.
+opamSwitchName :: OpamSwitch -> String
+opamSwitchName (LocalSwitch dir) = dir
+opamSwitchName (NamedSwitch nm) = nm
 
 -- | Require that an opam switch be created if it does not already exist.
 needOpamSwitch
@@ -218,23 +233,23 @@ withOpamSwitch
   -> Action a
 withOpamSwitch switchDir args act = do
   needOpamSwitch switchDir args
-  envVars <- askOpamEnv switchDir
-  act envVars
+  opamEnv <- askOpamEnv switchDir
+  putVerboseOpamEnv opamEnv
+  act opamEnv
 
 -- | Build @CmdOption@s from an opam environment.
 opamEnvOpts :: OpamEnvA -> [CmdOption]
-opamEnvOpts OpamEnvA{..} = pathOpt <> cwdOpt <> envOpts
+opamEnvOpts OpamEnvA{..} = pathOpt <> envOpts <> switchOpt
   where
     pathOpt = [AddPath opamEnvPathPrefix opamEnvPathSuffix]
     envOpts = fmap (uncurry AddEnv) opamEnvVars
-    cwdOpt =
-      case opamEnvSwitch of
-        LocalSwitch dir -> [Cwd dir]
-        _ -> []
+    -- Ensures that any further opam commands use this switch, even
+    -- if we are outside of a local switches directory.
+    switchOpt = [AddEnv "OPAMSWITCH" (opamSwitchName opamEnvSwitch)]
 
--- * Opam Install
---
--- $shakeOpamInstall
+
+--------------------------------------------------------------------------------
+-- Opam Install
 
 -- | Shake query for getting installed versions of packages in an @opam@ switch.
 data OpamVersionQ = OpamVersionQ
@@ -313,9 +328,8 @@ opamInstallOracle OpamInstallQ{..} = do
         pure justInstalledVersions
   pure (Map.union hasVersion justInstalledVersions)
 
--- * Dune
---
--- $shakeDune
+--------------------------------------------------------------------------------
+-- Dune
 
 -- | Shake query for installing @dune@.
 newtype DuneQ = DuneQ OpamEnvA
@@ -362,18 +376,21 @@ findDuneOracle (DuneQ opamEnv) = do
 duneCommand :: (HasCallStack, CmdResult r) => OpamEnvA -> [CmdOption] -> [String] -> Action r
 duneCommand opamEnv opts args = do
   dune <- needDune opamEnv
-  command (opamEnvOpts opamEnv ++ opts) dune args
+  putInfo $ "# dune " <> unwords args
+  quietly $ command (opamEnvOpts opamEnv ++ opts) dune args
 
 -- | Run a @dune@ command, and ignore the results.
 duneCommand_ :: (HasCallStack) => OpamEnvA -> [CmdOption] -> [String] -> Action ()
 duneCommand_ opamEnv opts args = do
   dune <- needDune opamEnv
-  command_ (opamEnvOpts opamEnv ++ opts) dune args
+  putInfo $ "# dune " <> unwords args
+  quietly $ command_ (opamEnvOpts opamEnv ++ opts) dune args
 
--- * S-Expression parsing
+--------------------------------------------------------------------------------
+-- S-Expressions
 --
 -- S-expressions are the lingua franca of ocaml build tools like
--- @opam@ and @dune@.
+-- @opam@ and @dune@, so we need to be able to parse them.
 
 data SExpr
   = String String
@@ -399,9 +416,8 @@ parseSExpr xs = do
       , String <$> between (skipSpaces *> char '\"') (skipSpaces *> char '\"') (munch ('\"' /=))
       ]
 
--- * Shake Opam Rules
---
--- $shakeOpamRules
+--------------------------------------------------------------------------------
+-- Shake Rules
 
 -- | Shake rules for @opam@.
 opamRules :: Rules ()

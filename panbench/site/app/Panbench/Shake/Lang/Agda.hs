@@ -1,16 +1,18 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 -- | Helpers for installing @agda@.
 module Panbench.Shake.Lang.Agda
-  ( -- $shakeAgdaInstall
+  ( -- * Agda installation
     AgdaQ(..)
   , defaultAgdaInstallRev
   , defaultAgdaInstallFlags
   , needAgdaInstallOpts
+  , AgdaBin
   , needAgda
-  -- $shakeAgdaCommands
-  , agdaCheckDefaultArgs
+  -- * Running Agda
+  , agdaCheck
+  , agdaCheckBench
   , agdaDoctor
-  -- $shakeAgdaRules
+  -- * Shake Rules
   , agdaRules
   ) where
 
@@ -22,6 +24,7 @@ import Development.Shake.Classes
 import GHC.Generics
 
 import Panbench.Shake.AllCores
+import Panbench.Shake.Benchmark
 import Panbench.Shake.File
 import Panbench.Shake.Git
 import Panbench.Shake.Store
@@ -29,9 +32,8 @@ import Panbench.Shake.Store
 import System.Directory qualified as Dir
 import System.FilePath
 
--- * Agda Installation
---
--- $shakeAgdaInstall
+--------------------------------------------------------------------------------
+-- Agda installation
 
 -- | Query for installing a version of @agda@.
 data AgdaQ = AgdaQ
@@ -66,13 +68,12 @@ defaultAgdaInstallFlags =
 agdaInstallDocs :: String
 agdaInstallDocs = unlines
   [ "Install a version of agda."
-  , ""
-  , "Can be configured with the following environment variables:"
-  , "* $AGDA_VERSION: select the revision of agda to install."
-  , "  Defaults to " <> defaultAgdaInstallRev
-  , "* $AGDA_CABAL_FLAGS: pass flags to cabal when building agda."
-  , "  Arguments should be separated by spaces."
-  , "  Defaults to " <> unwords defaultAgdaInstallFlags
+  , "  Can be configured with the following environment variables:"
+  , "  * $AGDA_VERSION: select the revision of agda to install."
+  , "    Defaults to " <> defaultAgdaInstallRev
+  , "  * $AGDA_CABAL_FLAGS: pass flags to cabal when building agda."
+  , "    Arguments should be separated by spaces."
+  , "    Defaults to " <> unwords defaultAgdaInstallFlags
   ]
 
 
@@ -125,30 +126,56 @@ agdaInstall AgdaQ{..} storeDir = do
     let outDir = takeDirectory $ takeWhile (not . isSpace) listBinOut
     copyDirectoryRecursive outDir storeDir
 
+-- | A handle to an Agda binary.
+data AgdaBin = AgdaBin
+  { agdaBin :: FilePath
+  }
+
 -- | Require that a particular version of @agda@ is installed,
 -- and return the absolute path pointing to the executable.
-needAgda :: AgdaQ -> Action FilePath
+needAgda :: AgdaQ -> Action AgdaBin
 needAgda q = do
   (store, _) <- askStoreOracle q
   path <- liftIO $ Dir.makeAbsolute (store </> "agda")
-  pure path
+  pure $ AgdaBin
+    { agdaBin = path
+    }
 
--- * Running Agda
---
--- $shakeAgdaCommands
+--------------------------------------------------------------------------------
+-- Running Agda
 
--- | Default arguments for @agda@ to check a file.
 agdaCheckDefaultArgs :: FilePath -> [String]
 agdaCheckDefaultArgs file = ["+RTS", "-M3.0G", "-RTS", file]
 
+-- | Check an @agda@ file.
+agdaCheck :: [CmdOption] -> AgdaBin -> FilePath -> Action ()
+agdaCheck opts AgdaBin{..} file =
+  command_ opts agdaBin (agdaCheckDefaultArgs file)
+
+-- | Construct a benchmark for a given agda binary.
+agdaCheckBench :: [CmdOption] -> AgdaBin -> FilePath -> Action BenchmarkExecStats
+agdaCheckBench opts AgdaBin{..} path =
+  benchmarkCommand opts agdaBin (agdaCheckDefaultArgs path)
+
 -- | Check that an @agda@ install is functioning by compiling an empty file.
-agdaDoctor :: AgdaQ -> Action ()
-agdaDoctor agdaQ = do
-  agda <- needAgda agdaQ
+agdaDoctor :: AgdaBin -> Action ()
+agdaDoctor agda = do
   withTempDir \dir -> do
     let testFile = dir </> "Test.agda"
     liftIO $ writeFile testFile "module Test where"
-    command_ [Cwd dir] agda (agdaCheckDefaultArgs testFile)
+    agdaCheck [Cwd dir] agda testFile
+
+-- | Docs for the @doctor-agda@ rule.
+agdaDoctorDocs :: String
+agdaDoctorDocs = unlines
+  [ "Check that an agda install is functional."
+  , "  Can be configured with the following environment variables:"
+  , "  * $AGDA_VERSION: select the revision of agda to install."
+  , "    Defaults to " <> defaultAgdaInstallRev
+  , "  * $AGDA_CABAL_FLAGS: pass flags to cabal when building agda."
+  , "    Arguments should be separated by spaces."
+  , "    Defaults to " <> unwords defaultAgdaInstallFlags
+  ]
 
 -- * Shake Rules for Agda
 --
@@ -163,6 +190,11 @@ agdaRules = do
     opts <- needAgdaInstallOpts
     _ <- needAgda opts
     pure ()
+
+  withTargetDocs agdaDoctorDocs $ phony "doctor-agda" do
+    opts <- needAgdaInstallOpts
+    agda <- needAgda opts
+    agdaDoctor agda
 
   phony "clean-agda" do
     removeFilesAfter "_build/repos" ["agda-*"]
