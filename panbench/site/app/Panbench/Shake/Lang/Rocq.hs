@@ -101,20 +101,20 @@ withRocqWorktree rev storeDir act =
 -- | Oracle for installing a version of @rocq@.
 rocqInstallOracle :: RocqQ -> FilePath -> Action ()
 rocqInstallOracle RocqQ{..} storeDir = do
-  withRocqWorktree rocqInstallRev storeDir \_ -> do
+  withRocqWorktree rocqInstallRev storeDir \workDir -> do
     let rocqSwitchPkgs = intercalate "," [rocqOcamlCompiler, "dune", "ocamlfind", "zarith"]
     -- We set up the up the local switch inside of the store instead of the worktree,
     -- as this ensures that we still can find our packages after we blow away the build.
     withOpamSwitch (LocalSwitch storeDir) ["--packages=" ++ rocqSwitchPkgs, "--no-install"] \opamEnv -> do
-      command_ (opamEnvOpts opamEnv) "./configure"
+      command_ ([Cwd workDir] ++ opamEnvOpts opamEnv) "./configure"
         ["-prefix", storeDir
         ]
-      makeCommand_ (opamEnvOpts opamEnv) ["dunestrap"]
+      makeCommand_ ([Cwd workDir] ++ opamEnvOpts opamEnv) ["dunestrap"]
       -- We need to use @NJOBS@ over @-j@, see @dev/doc/build-system.dune.md@ for details.
       -- Moreover, note that -p implies --release!
       withAllCores \nCores ->
-        duneCommand_ opamEnv [AddEnv "NJOBS" (show nCores)] ["build", "-p", "rocq-runtime,coq-core,rocq-core,coq"]
-      duneCommand_ opamEnv [] ["install", "--prefix=" ++ storeDir, "rocq-runtime", "coq-core", "rocq-core", "coq"]
+        duneCommand_ opamEnv [Cwd workDir, AddEnv "NJOBS" (show nCores)] ["build", "-p", "rocq-runtime,coq-core,rocq-core,coq"]
+      duneCommand_ opamEnv [Cwd workDir] ["install", "--prefix=" ++ storeDir, "rocq-runtime", "coq-core", "rocq-core", "coq"]
 
 data RocqBin = RocqBin
   { rocqBin :: FilePath
