@@ -176,11 +176,8 @@ putVerboseOpamEnv OpamEnvA{..} =
 
 -- | Shake oracle for @opam env@ queries.
 opamEnvOracle :: OpamEnvQ -> Action OpamEnvA
-opamEnvOracle (OpamEnvQ switch@(NamedSwitch name)) = do
-  Stdout envOut <- opamCommand [AddEnv "OPAMSWITCH" name] ["env", "--sexp"]
-  parseOpamEnv switch envOut
-opamEnvOracle (OpamEnvQ switch@(LocalSwitch dir)) = do
-  Stdout envOut <- opamCommand [Cwd dir] ["env", "--sexp"]
+opamEnvOracle (OpamEnvQ switch) = do
+  Stdout envOut <- opamCommand [AddEnv "OPAMSWITCH" (opamSwitchName switch)] ["env", "--sexp"]
   parseOpamEnv switch envOut
 
 --------------------------------------------------------------------------------
@@ -242,14 +239,13 @@ withOpamSwitch switchDir args act = do
 
 -- | Build @CmdOption@s from an opam environment.
 opamEnvOpts :: OpamEnvA -> [CmdOption]
-opamEnvOpts OpamEnvA{..} = pathOpt <> cwdOpt <> envOpts
+opamEnvOpts OpamEnvA{..} = pathOpt <> envOpts <> switchOpt
   where
     pathOpt = [AddPath opamEnvPathPrefix opamEnvPathSuffix]
     envOpts = fmap (uncurry AddEnv) opamEnvVars
-    cwdOpt =
-      case opamEnvSwitch of
-        LocalSwitch dir -> [Cwd dir]
-        _ -> []
+    -- Ensures that any further opam commands use this switch, even
+    -- if we are outside of a local switches directory.
+    switchOpt = [AddEnv "OPAMSWITCH" (opamSwitchName opamEnvSwitch)]
 
 
 --------------------------------------------------------------------------------
