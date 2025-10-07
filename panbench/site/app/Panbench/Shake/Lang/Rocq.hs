@@ -116,8 +116,10 @@ rocqInstallOracle RocqQ{..} storeDir = do
         duneCommand_ opamEnv [Cwd workDir, AddEnv "NJOBS" (show nCores)] ["build", "-p", "rocq-runtime,coq-core,rocq-core,coq"]
       duneCommand_ opamEnv [Cwd workDir] ["install", "--prefix=" ++ storeDir, "rocq-runtime", "coq-core", "rocq-core", "coq"]
 
+-- | An abstract representation of a @rocq@ binary.
 data RocqBin = RocqBin
   { rocqBin :: FilePath
+  -- ^ The path to the @rocq@ binary.
   }
 
 -- | Require that a particular version of @rocq@ is installed,
@@ -151,7 +153,7 @@ rocqDoctor rocq = do
       [ "Module Test."
       , "End Test."
       ]
-    rocqCheck [Cwd dir] rocq testFile
+    rocqCheck [Cwd dir] rocq "Test.v"
 
 -- | Docs for the @doctor-rocq@ rule.
 rocqDoctorDocs :: String
@@ -164,8 +166,6 @@ rocqDoctorDocs = unlines
   , "* $ROCQ_OCAML: select the version of ocaml to use to build rocq."
   , "  Defaults to " <> defaultRocqOcamlCompiler
   ]
-
-
 
 -- * Shake Rules for Rocq
 --
