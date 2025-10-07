@@ -102,7 +102,7 @@ needBenchmarkMatrix (BenchmarkMatrix _ sizes rows) = BenchmarkMatrixStats <$>
     bin <- needLang rep
     (dir, file) <- splitFileName <$> needModule gen size
     cleanBuildArtifacts rep dir
-    stat <- liftIO $ benchmark bin (defaultCheckArgs rep file) [("HOME", dir)] dir
+    stat <- benchmarkModule rep [Env [("HOME", dir)]] bin file
     pure (langName rep, show size, stat)
 
 needBenchmarkMatrices :: [BenchmarkMatrix] -> Action [BenchmarkMatrixStats]
