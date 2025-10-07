@@ -58,12 +58,11 @@ defaultRocqOcamlCompiler = "ocaml-variants.4.14.2+options,ocaml-option-flambda"
 rocqInstallDocs :: String
 rocqInstallDocs = unlines
   [ "Install a version of rocq."
-  , ""
-  , "Can be configured with the following environment variables:"
-  , "* $ROCQ_VERSION: select the revision of rocq to install "
-  , "  Defaults to " <> defaultRocqInstallRev
-  , "* $ROCQ_OCAML: select the version of ocaml to use to build rocq."
-  , "  Defaults to " <> defaultRocqOcamlCompiler
+  , "  Can be configured with the following environment variables:"
+  , "  * $ROCQ_VERSION: select the revision of rocq to install "
+  , "    Defaults to " <> defaultRocqInstallRev
+  , "  * $ROCQ_OCAML: select the version of ocaml to use to build rocq."
+  , "    Defaults to " <> defaultRocqOcamlCompiler
   ]
 
 -- | Get the @rocq@ version to install from the @$ROCQ_VERSION@ environment variable.
@@ -159,12 +158,11 @@ rocqDoctor rocq = do
 rocqDoctorDocs :: String
 rocqDoctorDocs = unlines
   [ "Check that an installation of rocq is functional."
-  , ""
-  , "Can be configured with the following environment variables:"
-  , "* $ROCQ_VERSION: select the revision of rocq to install "
-  , "  Defaults to " <> defaultRocqInstallRev
-  , "* $ROCQ_OCAML: select the version of ocaml to use to build rocq."
-  , "  Defaults to " <> defaultRocqOcamlCompiler
+  , "  Can be configured with the following environment variables:"
+  , "  * $ROCQ_VERSION: select the revision of rocq to install "
+  , "    Defaults to " <> defaultRocqInstallRev
+  , "  * $ROCQ_OCAML: select the version of ocaml to use to build rocq."
+  , "    Defaults to " <> defaultRocqOcamlCompiler
   ]
 
 -- * Shake Rules for Rocq

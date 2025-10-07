@@ -83,13 +83,12 @@ needIdrisInstallScheme = do
 idrisInstallDocs :: String
 idrisInstallDocs = unlines
   [ "Install a version of idris."
-  , ""
-  , "Can be configured with the following environment variables:"
-  , "* $IDRIS_VERSION: select the revision of rocq to install "
-  , "  Defaults to " <> defaultIdrisInstallRev
-  , "* $IDRIS_SCHEME: select the scheme flavor used to build idris."
-  , "  Must be one of 'chez' or 'racket'."
-  , "  Defaults to 'chez'"
+  , "  Can be configured with the following environment variables:"
+  , "  * $IDRIS_VERSION: select the revision of rocq to install "
+  , "    Defaults to " <> defaultIdrisInstallRev
+  , "  * $IDRIS_SCHEME: select the scheme flavor used to build idris."
+  , "    Must be one of 'chez' or 'racket'."
+  , "    Defaults to 'chez'"
   ]
 
 -- | Get install options for @idris@ from environment variables.
@@ -193,13 +192,12 @@ idrisDoctor idris = do
 idrisDoctorDocs :: String
 idrisDoctorDocs = unlines
   [ "Check that idris is installed, and can typecheck a file."
-  , ""
-  , "Can be configured with the following environment variables:"
-  , "* $IDRIS_VERSION: select the revision of rocq to install "
-  , "  Defaults to " <> defaultIdrisInstallRev
-  , "* $IDRIS_SCHEME: select the scheme flavor used to build idris."
-  , "  Must be one of 'chez' or 'racket'."
-  , "  Defaults to 'chez'"
+  , "  Can be configured with the following environment variables:"
+  , "  * $IDRIS_VERSION: select the revision of rocq to install "
+  , "    Defaults to " <> defaultIdrisInstallRev
+  , "  * $IDRIS_SCHEME: select the scheme flavor used to build idris."
+  , "    Must be one of 'chez' or 'racket'."
+  , "    Defaults to 'chez'"
   ]
 
 -- | Shake rules for installing @idris2@.

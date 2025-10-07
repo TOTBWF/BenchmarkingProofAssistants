@@ -64,16 +64,15 @@ defaultLeanMakeFlags = []
 leanInstallDocs :: String
 leanInstallDocs = unlines
   [ "Install a version of lean."
-  , ""
-  , "Can be configured with the following environment variables:"
-  , "* $LEAN_VERSION: select the revision of lean to install."
-  , "  Defaults to " <> defaultLeanInstallRev
-  , "* $LEAN_CMAKE_FLAGS: pass flags to cmake when building lean."
-  , "  Arguments should be separated by spaces."
-  , "  Defaults to " <> unwords defaultLeanCMakeFlags
-  , "* $LEAN_MAKE_FLAGS: pass flags to make when building lean."
-  , "  Arguments should be separated by spaces."
-  , "  Defaults to " <> unwords defaultLeanMakeFlags
+  , "  Can be configured with the following environment variables:"
+  , "  * $LEAN_VERSION: select the revision of lean to install."
+  , "    Defaults to " <> defaultLeanInstallRev
+  , "  * $LEAN_CMAKE_FLAGS: pass flags to cmake when building lean."
+  , "    Arguments should be separated by spaces."
+  , "    Defaults to " <> unwords defaultLeanCMakeFlags
+  , "  * $LEAN_MAKE_FLAGS: pass flags to make when building lean."
+  , "    Arguments should be separated by spaces."
+  , "    Defaults to " <> unwords defaultLeanMakeFlags
   ]
 
 -- | Get the version of @lean@ to install from the @$LEAN_VERSION@ environment variable.
@@ -169,16 +168,15 @@ leanDoctor lean = do
 leanDoctorDocs :: String
 leanDoctorDocs = unlines
   [ "Check that an of lean is functional."
-  , ""
-  , "Can be configured with the following environment variables:"
-  , "* $LEAN_VERSION: select the revision of lean to install."
-  , "  Defaults to " <> defaultLeanInstallRev
-  , "* $LEAN_CMAKE_FLAGS: pass flags to cmake when building lean."
-  , "  Arguments should be separated by spaces."
-  , "  Defaults to " <> unwords defaultLeanCMakeFlags
-  , "* $LEAN_MAKE_FLAGS: pass flags to make when building lean."
-  , "  Arguments should be separated by spaces."
-  , "  Defaults to " <> unwords defaultLeanMakeFlags
+  , "  Can be configured with the following environment variables:"
+  , "  * $LEAN_VERSION: select the revision of lean to install."
+  , "    Defaults to " <> defaultLeanInstallRev
+  , "  * $LEAN_CMAKE_FLAGS: pass flags to cmake when building lean."
+  , "    Arguments should be separated by spaces."
+  , "    Defaults to " <> unwords defaultLeanCMakeFlags
+  , "  * $LEAN_MAKE_FLAGS: pass flags to make when building lean."
+  , "    Arguments should be separated by spaces."
+  , "    Defaults to " <> unwords defaultLeanMakeFlags
   ]
 
 

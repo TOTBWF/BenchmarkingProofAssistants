@@ -68,13 +68,12 @@ defaultAgdaInstallFlags =
 agdaInstallDocs :: String
 agdaInstallDocs = unlines
   [ "Install a version of agda."
-  , ""
-  , "Can be configured with the following environment variables:"
-  , "* $AGDA_VERSION: select the revision of agda to install."
-  , "  Defaults to " <> defaultAgdaInstallRev
-  , "* $AGDA_CABAL_FLAGS: pass flags to cabal when building agda."
-  , "  Arguments should be separated by spaces."
-  , "  Defaults to " <> unwords defaultAgdaInstallFlags
+  , "  Can be configured with the following environment variables:"
+  , "  * $AGDA_VERSION: select the revision of agda to install."
+  , "    Defaults to " <> defaultAgdaInstallRev
+  , "  * $AGDA_CABAL_FLAGS: pass flags to cabal when building agda."
+  , "    Arguments should be separated by spaces."
+  , "    Defaults to " <> unwords defaultAgdaInstallFlags
   ]
 
 
@@ -170,13 +169,12 @@ agdaDoctor agda = do
 agdaDoctorDocs :: String
 agdaDoctorDocs = unlines
   [ "Check that an agda install is functional."
-  , ""
-  , "Can be configured with the following environment variables:"
-  , "* $AGDA_VERSION: select the revision of agda to install."
-  , "  Defaults to " <> defaultAgdaInstallRev
-  , "* $AGDA_CABAL_FLAGS: pass flags to cabal when building agda."
-  , "  Arguments should be separated by spaces."
-  , "  Defaults to " <> unwords defaultAgdaInstallFlags
+  , "  Can be configured with the following environment variables:"
+  , "  * $AGDA_VERSION: select the revision of agda to install."
+  , "    Defaults to " <> defaultAgdaInstallRev
+  , "  * $AGDA_CABAL_FLAGS: pass flags to cabal when building agda."
+  , "    Arguments should be separated by spaces."
+  , "    Defaults to " <> unwords defaultAgdaInstallFlags
   ]
 
 -- * Shake Rules for Agda
