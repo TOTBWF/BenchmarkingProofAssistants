@@ -37,18 +37,18 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: Download latest build of site ⬇️
+        id: download-site
         uses: actions/download-artifact@v5
         with:
           github-token: ${{ github.token }}
           name: static-site
-          path: ~/site
           run-id: ${{ github.event.workflow_run.id }}
           repository: JacquesCarette/BenchmarkingProofAssistants
 
       - name: Upload site ⬆️
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ~/site
+          path: ${{ steps.download-site.outputs.download-path }}
 
       - name: Deploy to GitHub Pages 📖
         id: deployment
