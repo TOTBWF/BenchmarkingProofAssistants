@@ -110,7 +110,7 @@ needBenchmarkMatrix (BenchmarkMatrix _ sizes rows) = BenchmarkMatrixStats <$>
     bin <- needLang rep
     (dir, file) <- splitFileName <$> needModule gen size
     cleanBuildArtifacts rep dir
-    stat <- benchmarkModule rep [Env [("HOME", dir)]] bin file
+    stat <- benchmarkModule rep [Env [("HOME", dir)], Cwd dir] bin file
     pure (langName rep, JSON.toJSON size, stat)
 
 needBenchmarkMatrices :: [BenchmarkMatrix] -> Action [BenchmarkMatrixStats]
