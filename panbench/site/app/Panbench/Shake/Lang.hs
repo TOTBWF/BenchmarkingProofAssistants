@@ -13,6 +13,9 @@ module Panbench.Shake.Lang
   , needModules
   ) where
 
+
+import Data.Aeson qualified as JSON
+
 import Data.Text qualified as T
 import Data.Traversable
 
@@ -56,7 +59,10 @@ class (Module m hdr defn) => ShakeLang m hdr defn rep | m -> rep, rep -> m where
 
   -- | Require that a module described by a 'Gen' get built.
   -- This should return an absolute filepath.
-  needModule :: (Show size) => GenModule size hdr defn -> size -> Action FilePath
+  --
+  -- We require a 'JSON.ToJSON' constraint to be able to properly encode the sizes
+  -- when we pass off the results to vega, and we need 'Show' to construct paths for sizes.
+  needModule :: (JSON.ToJSON size, Show size) => GenModule size hdr defn -> size -> Action FilePath
 
   -- | Clean all build artifacts for a language in the given directory.
   cleanBuildArtifacts :: forall rep' -> (rep ~ rep') => FilePath -> Action ()
@@ -68,7 +74,11 @@ class (Module m hdr defn) => ShakeLang m hdr defn rep | m -> rep, rep -> m where
 -- actually know how generate and typecheck the module.
 data SomeLangModule where
   -- | Pack a 'GenModule' alongside a 'ShakeLang' dictionary.
-  SomeLangModule :: forall m hdr defn rep size. (ShakeLang m hdr defn rep, Show size) => GenModule size hdr defn -> size -> SomeLangModule
+  SomeLangModule
+    :: forall m hdr defn rep size. (ShakeLang m hdr defn rep, Show size, JSON.ToJSON size)
+    => GenModule size hdr defn
+    -> size
+    -> SomeLangModule
 
 -- | Get the output file for a module in a standardized format.
 --
