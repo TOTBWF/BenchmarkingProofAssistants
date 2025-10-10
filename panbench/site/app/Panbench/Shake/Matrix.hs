@@ -38,7 +38,10 @@ data BenchmarkMatrixRow size where
   -- | Pack up a 'GenModule' along with a 'ShakeLang' dictionary.
   --
   -- Users are encouraged to use 'benchmarkMatrixRow', which takes an explicit type argument.
-  BenchmarkMatrixRow :: forall rep m hdr defn size. (ShakeLang m hdr defn rep) => GenModule size hdr defn -> BenchmarkMatrixRow size
+  BenchmarkMatrixRow
+    :: forall rep m hdr defn size. (ShakeLang m hdr defn rep)
+    => GenModule size hdr defn
+    -> BenchmarkMatrixRow size
 
 
 -- | Make a benchmarking matrix row.
@@ -51,7 +54,12 @@ benchmarkMatrixRow _ = BenchmarkMatrixRow
 
 -- | A benchmarking matrix.
 data BenchmarkMatrix where
-  BenchmarkMatrix :: forall size. (Show size) => String -> [size] -> [BenchmarkMatrixRow size] -> BenchmarkMatrix
+  BenchmarkMatrix
+    :: forall size. (JSON.ToJSON size, Show size)
+    => String
+    -> [size]
+    -> [BenchmarkMatrixRow size]
+    -> BenchmarkMatrix
 
 --------------------------------------------------------------------------------
 -- Benchmarking matrix statistics
@@ -59,7 +67,7 @@ data BenchmarkMatrix where
 -- | Benchmarking statistics for a @'BenchmarkMatrix'@.
 --
 -- This is stored in a format that can easily be consumed by @vega-lite@.
-newtype BenchmarkMatrixStats = BenchmarkMatrixStats [(String, String, BenchmarkExecStats)]
+newtype BenchmarkMatrixStats = BenchmarkMatrixStats [(String, JSON.Value, BenchmarkExecStats)]
   deriving stock (Show, Eq, Generic)
   deriving anyclass (Hashable, NFData)
 
@@ -70,7 +78,7 @@ instance JSON.ToJSON (BenchmarkMatrixStats) where
     JSON.toJSON $ stats <&> \(lang, size, BenchmarkExecStats{..}) ->
       JSON.object
       [ ("lang", JSON.toJSON lang)
-      , ("size", JSON.toJSON size)
+      , ("size", size)
       , ("user", JSON.toJSON benchUserTime)
       , ("system", JSON.toJSON benchSystemTime)
       , ("rss", JSON.toJSON benchMaxRss)
@@ -103,7 +111,7 @@ needBenchmarkMatrix (BenchmarkMatrix _ sizes rows) = BenchmarkMatrixStats <$>
     (dir, file) <- splitFileName <$> needModule gen size
     cleanBuildArtifacts rep dir
     stat <- benchmarkModule rep [Env [("HOME", dir)]] bin file
-    pure (langName rep, show size, stat)
+    pure (langName rep, JSON.toJSON size, stat)
 
 needBenchmarkMatrices :: [BenchmarkMatrix] -> Action [BenchmarkMatrixStats]
 needBenchmarkMatrices = traverse needBenchmarkMatrix
